@@ -1,0 +1,46 @@
+/* public/css/navbar.css */
+/* Layout styles ONLY - colors come from app.css */
+
+.navbar {
+    height: var(--navbar-height);
+    padding: 0.5rem 1rem;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 999;
+    transition: left var(--transition-speed) ease;
+}
+
+.navbar.expanded {
+    left: var(--sidebar-width);
+}
+
+.user-info {
+    text-align: right;
+    line-height: 1.2;
+}
+
+.user-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.user-role {
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+.user-avatar {
+    font-size: 1.75rem;
+}
+
+@media (max-width: 767.98px) {
+    .navbar {
+        left: 0 !important;
+    }
+    
+    .user-info {
+        display: none;
+    }
+}

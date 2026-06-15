@@ -1,0 +1,114 @@
+/* public/css/app.css */
+:root {
+    /* වර්ණ පිළිතුරු */
+    --primary-color: #4361ee;
+    --secondary-color: #3f37c9;
+    --success-color: #4cc9f0;
+    --dark-color: #2b2d42;
+    --light-color: #f8f9fa;
+    --sidebar-width: 280px;
+    --sidebar-collapsed: 80px;
+    --navbar-height: 70px;
+    
+    /* Bootstrap වර්ණ අභිබවා යාම */
+    --bs-primary: var(--primary-color);
+    --bs-secondary: var(--secondary-color);
+    --bs-success: var(--success-color);
+    --bs-dark: var(--dark-color);
+    --bs-light: var(--light-color);
+}
+
+/* මූලික body styles - FIXED */
+/* Background */
+body {
+    background: linear-gradient(135deg, #4f46e5, #06b6d4);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* Floating elements */
+.floating-element {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 50%;
+    animation: float 8s infinite ease-in-out;
+}
+
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+    100% { transform: translateY(0px); }
+}
+
+/* Login Card */
+.login-card {
+    width: 420px;
+    border: none;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(15px);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    color: white;
+}
+
+/* Header */
+.login-header {
+    text-align: center;
+    padding: 25px;
+    border-bottom: none;
+}
+
+/* Inputs */
+.login-form-control {
+    border-radius: 10px;
+    padding: 12px;
+}
+
+/* Button */
+.btn-login {
+    background: #111827;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: 0.3s;
+}
+
+.btn-login:hover {
+    background: #000;
+    transform: translateY(-2px);
+}
+
+/* Mobile responsive fixes */
+@media (max-width: 768px) {
+    .main-content {
+        margin-left: 0 !important;
+        padding: 20px 15px;
+    }
+    
+    .content-card {
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .stats-card {
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+}
+
+/* Ensure proper z-index layering */
+.sidebar {
+    z-index: 1000;
+}
+
+.navbar-custom {
+    z-index: 999;
+}
+
+.main-content {
+    z-index: 1;
+}

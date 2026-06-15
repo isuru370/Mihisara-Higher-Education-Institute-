@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laravel_app
+    restart: always
+    ports:
+      - '8010:80'
+    volumes:
+      - storage_volume:/var/www/html/storage
+      - uploads_volume:/var/www/html/public/uploads
+    environment:
+      - APP_ENV=production
+      - APP_URL=https://minipalasaeducation.nexorait.lk
+      - QUEUE_CONNECTION=database
+    command: >
+      sh -c "
+      chown -R www-data:www-data /var/www/html/storage /var/www/html/public/uploads &&
+      chmod -R 775 /var/www/html/storage /var/www/html/public/uploads &&
+      apache2-foreground
+      "
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laravel_worker
+    restart: always
+    volumes:
+      - storage_volume:/var/www/html/storage
+      - uploads_volume:/var/www/html/public/uploads
+    environment:
+      - APP_ENV=production
+      - APP_URL=https://minipalasaeducation.nexorait.lk
+      - QUEUE_CONNECTION=database
+    command: >
+      sh -c "
+      chown -R www-data:www-data /var/www/html/storage /var/www/html/public/uploads &&
+      chmod -R 775 /var/www/html/storage /var/www/html/public/uploads &&
+      php artisan queue:work database --queue=sms,default --sleep=3 --tries=3 --timeout=30
+      "
+
+volumes:
+  storage_volume:
+  uploads_volume:
