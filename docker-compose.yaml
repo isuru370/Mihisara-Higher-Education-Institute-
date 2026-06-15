@@ -8,13 +8,13 @@ services:
     container_name: laravel_app
     restart: always
     ports:
-      - '8010:80'
+      - '8011:80'
     volumes:
       - storage_volume:/var/www/html/storage
       - uploads_volume:/var/www/html/public/uploads
     environment:
       - APP_ENV=production
-      - APP_URL=https://minipalasaeducation.nexorait.lk
+      - APP_URL=https://mihisaraeducation.nexorait.lk
       - QUEUE_CONNECTION=database
     command: >
       sh -c "

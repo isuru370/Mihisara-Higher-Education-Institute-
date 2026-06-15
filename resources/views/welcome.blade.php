@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MINIPALASA HIGHER EDUCATION INSTITUTE · welcome</title>
+    <title>MIHISARA HIGHER EDUCATION INSTITUTE · welcome</title>
 
     <!-- Google Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,300&display=swap" rel="stylesheet">
@@ -425,13 +425,13 @@
             </div>
 
             <div class="logo-container">
-                <img src="{{ asset('storage/logo/logo.png') }}" alt="MINIPALASA HIGHER EDUCATION INSTITUTE logo" class="logo"
+                <img src="{{ asset('storage/logo/logo.png') }}" alt="MIHISARA HIGHER EDUCATION INSTITUTE logo" class="logo"
                     onerror="this.src='https://placehold.co/320x120/0f766e/ffffff?text=MINIPALASA+INSTITUTE&font=inter';">
             </div>
 
             <div class="hero">
                 <h1>
-                    Welcome to <span class="accent">MINIPALASA HIGHER EDUCATION INSTITUTE</span>
+                    Welcome to <span class="accent">MIHISARA HIGHER EDUCATION INSTITUTE</span>
                 </h1>
 
                 <p class="subline">
