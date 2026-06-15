@@ -7,7 +7,7 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Login - Nexora Education</title>
+    <title>Login - MIHISARA HIGHER EDUCATION INSTITUTE</title>
 
     <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -457,7 +457,7 @@
                 </div>
 
                 <h1 class="brand-title">
-                    MINIPALASA EDUCATION
+                    MIHISARA HIGHER EDUCATION INSTITUTE
                 </h1>
 
                 <p class="brand-subtitle">

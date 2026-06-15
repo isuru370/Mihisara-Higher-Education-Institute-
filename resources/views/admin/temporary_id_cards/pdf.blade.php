@@ -237,7 +237,7 @@
         }
 
         $logoSrc = '';
-        $logoPath = public_path('storage/logo/black_logo.png');
+        $logoPath = public_path('storage/logo/logo.png');
 
         if (file_exists($logoPath)) {
             $logoSrc = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
@@ -272,8 +272,10 @@
                                             @endif
 
                                             <div class="institute-name">
-                                                <div class="title">MINIPALASA</div>
-                                                <div class="sub">EDUCATION CENTRE</div>
+                                                <div class="title">MIHISARA</div>
+                                                <div class="sub">HIGHER EDUCATION</div>
+
+                                                <div class="sub">INSTITUTE</div>
                                                 <div class="name-line"></div>
                                             </div>
                                         </div>

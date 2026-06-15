@@ -26,9 +26,9 @@ class SystemUsersTableSeeder extends Seeder
             ],
             [
                 'custom_id' => 'ADM002',
-                'full_name' => 'Minipalasa Administrator',
-                'email' => 'minipalasa@gmail.com',
-                'password' => 'Admin@minipalasa',
+                'full_name' => 'Mihisara Administrator',
+                'email' => 'mihisara@gmail.com',
+                'password' => 'Admin@mihisara',
                 'mobile' => '0719876543',
                 'nic' => '987654321V',
                 'bday' => '1990-05-20',
