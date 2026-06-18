@@ -41,4 +41,24 @@ return [
     'image' => [
         'base_url' => env('IMAGE_BASE_URL'),
     ],
+
+    'parent_hub' => [
+
+        'url' => env('PARENT_HUB_URL'),
+
+        'secret' => env('PARENT_HUB_SECRET'),
+
+    ],
+
+    'institute' => [
+
+        'code' => env('INSTITUTE_CODE'),
+
+        'name' => env('INSTITUTE_NAME'),
+
+        'contact_email' => env('CONTACT_EMAIL'),
+
+        'contact_mobile' => env('CONTACT_MOBILE'),
+
+    ],
 ];
