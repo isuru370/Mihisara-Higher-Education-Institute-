@@ -12,6 +12,7 @@ class StudentPortalLogin extends Model
 
     protected $fillable = [
         'student_id',
+        'institute_code',
         'username',
         'password',
         'is_verified',
@@ -27,6 +28,15 @@ class StudentPortalLogin extends Model
         'otp_expires_at' => 'datetime',
         'last_login_at' => 'datetime',
     ];
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (empty($model->institute_code)) {
+                $model->institute_code = config('services.institute.code');
+            }
+        });
+    }
 
     // 🔐 auto hash password
     public function setPasswordAttribute($value)
