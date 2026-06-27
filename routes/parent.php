@@ -1,9 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\Parent\Auth\ParentAuthController;
-use App\Http\Controllers\Api\Parent\Dashboard\DashboardController;
-use App\Http\Controllers\Api\Parent\FCM\FcmTokenController;
+use App\Http\Controllers\API\Parent\Auth\ParentAuthController;
+use App\Http\Controllers\API\Parent\Dashboard\DashboardController;
+use App\Http\Controllers\API\Parent\FCM\FcmTokenController;
 
 Route::prefix('v1')->group(function () {
 
