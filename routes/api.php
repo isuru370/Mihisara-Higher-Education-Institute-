@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\Auth\LoginController;
 use App\Http\Controllers\API\ClassScheduleController;
 use App\Http\Controllers\API\GradeController;
-use App\Http\Controllers\Api\InstituteHallController;
+use App\Http\Controllers\API\InstituteHallController;
 use App\Http\Controllers\API\MobileDashboardController;
 use App\Http\Controllers\API\QuickPhotoController;
 use App\Http\Controllers\API\StudentAttendanceController;
