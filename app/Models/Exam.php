@@ -29,6 +29,12 @@ class Exam extends Model
         'cancelled_at' => 'datetime',
     ];
 
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
+
     public function studentClass()
     {
         return $this->belongsTo(StudentClass::class);
@@ -36,23 +42,64 @@ class Exam extends Model
 
     public function category()
     {
-        return $this->belongsTo(ClassCategory::class, 'class_category_id');
+        return $this->belongsTo(
+            ClassCategory::class,
+            'class_category_id'
+        );
     }
 
     public function hall()
     {
-        return $this->belongsTo(ClassHall::class, 'class_hall_id');
+        return $this->belongsTo(
+            ClassHall::class,
+            'class_hall_id'
+        );
     }
 
     public function cancelledBy()
     {
-        return $this->belongsTo(User::class, 'cancelled_by');
+        return $this->belongsTo(
+            User::class,
+            'cancelled_by'
+        );
     }
 
     public function results()
     {
         return $this->hasMany(StudentResult::class);
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Scopes
+    |--------------------------------------------------------------------------
+    */
+
+    public function scopeScheduled($query)
+    {
+        return $query->where('status', 'scheduled');
+    }
+
+    public function scopeOngoing($query)
+    {
+        return $query->where('status', 'ongoing');
+    }
+
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', 'completed');
+    }
+
+    public function scopeCancelled($query)
+    {
+        return $query->where('status', 'cancelled');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Helpers
+    |--------------------------------------------------------------------------
+    */
 
     public function cancel($userId, $reason = null)
     {
@@ -62,5 +109,33 @@ class Exam extends Model
             'cancelled_by' => $userId,
             'cancelled_at' => now(),
         ]);
+    }
+
+    public function hasResults(): bool
+    {
+        return $this->results()->exists();
+    }
+
+    public function totalStudents(): int
+    {
+        return $this->results()->count();
+    }
+
+    public function averageMarks(): float
+    {
+        return (float) $this->results()
+            ->avg('marks');
+    }
+
+    public function highestMarks(): float
+    {
+        return (float) $this->results()
+            ->max('marks');
+    }
+
+    public function lowestMarks(): float
+    {
+        return (float) $this->results()
+            ->min('marks');
     }
 }

@@ -14,7 +14,6 @@ use App\Services\ParentHub\ParentHubService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Exception;
 
 class StudentService
@@ -89,7 +88,10 @@ class StudentService
      */
     public function createStudentPortalLogin(Student $student): string
     {
-        $plainPassword = $this->generateStudentPassword();
+        $plainPassword = $this->generateStudentPassword(
+            $student->initial_name,
+            $student->guardian_mobile
+        );
 
         StudentPortalLogin::create([
             'student_id' => $student->id,
@@ -112,12 +114,11 @@ class StudentService
     /**
      * Generate student password
      */
-    private function generateStudentPassword(): string
+    private function generateStudentPassword(string $name, string $mobile): string
     {
-        $letters = strtoupper(Str::random(4));
-        $numbers = str_pad((string) rand(0, 9999), 4, '0', STR_PAD_LEFT);
-
-        return str_shuffle($letters . $numbers);
+        $source = strtolower(trim($name)) . preg_replace('/\D/', '', $mobile);
+        $number = abs(crc32($source));
+        return str_pad(substr((string) $number, 0, 8), 8, '0', STR_PAD_LEFT);
     }
 
     /**

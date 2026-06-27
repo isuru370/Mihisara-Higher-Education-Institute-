@@ -19,8 +19,10 @@ use App\Http\Controllers\Admin\ClassScheduleController;
 use App\Http\Controllers\Admin\ClassTimeTableController;
 use App\Http\Controllers\Admin\DailyReportController;
 use App\Http\Controllers\Admin\DatabaseBackupController;
+use App\Http\Controllers\Admin\ExamController;
 use App\Http\Controllers\Admin\ExtraIncomeController;
 use App\Http\Controllers\Admin\ForgotPasswordController;
+use App\Http\Controllers\Admin\GradeController;
 use App\Http\Controllers\Admin\ImageUploadController;
 use App\Http\Controllers\Admin\InstituteExpenseController;
 use App\Http\Controllers\Admin\InstituteIncomeController;
@@ -380,6 +382,23 @@ Route::middleware([
 
 
         /*
+|--------------------------------------------------------------------------
+| Grade Management
+|--------------------------------------------------------------------------
+*/
+
+        Route::resource(
+            'grades',
+            GradeController::class
+        );
+
+        Route::patch(
+            'grades/{grade}/toggle-active',
+            [GradeController::class, 'toggleActive']
+        )->name('grades.toggleActive');
+
+
+        /*
         |--------------------------------------------------------------------------
         | Class Categories
         |--------------------------------------------------------------------------
@@ -560,6 +579,121 @@ Route::middleware([
         Route::get('/attendance', function () {
             return view('admin.attendance.index');
         })->name('attendance.index');
+
+        /*
+|--------------------------------------------------------------------------
+| STUDENT EXAM
+|--------------------------------------------------------------------------
+*/
+
+        // Upcoming exams view
+        Route::get(
+            'exams/upcoming',
+            [ExamController::class, 'upcoming']
+        )->name('exams.upcoming');
+
+        // Exam counts for dashboard
+        Route::get(
+            'exams/counts',
+            [ExamController::class, 'counts']
+        )->name('exams.counts');
+
+        // Export Excel
+        Route::get(
+            'exams/export/excel',
+            [ExamController::class, 'exportExcel']
+        )->name('exams.export.excel');
+
+        // Export PDF
+        Route::get(
+            'exams/export/pdf',
+            [ExamController::class, 'exportPdf']
+        )->name('exams.export.pdf');
+
+        // Hall availability check (AJAX)
+        Route::get(
+            'exams/check-hall-availability',
+            [
+                ExamController::class,
+                'checkHallAvailability'
+            ]
+        )->name('exams.check-hall-availability');
+
+        // Get categories by class (AJAX)
+        Route::get(
+            'exams/get-categories',
+            [ExamController::class, 'getCategoriesByClass']
+        )->name('exams.get-categories');
+
+        // Resource routes
+        Route::resource(
+            'exams',
+            ExamController::class
+        )->except(['destroy']);
+
+        // Delete (soft delete)
+        Route::delete(
+            'exams/{exam}',
+            [ExamController::class, 'destroy']
+        )->name('exams.destroy');
+
+        // Cancel exam
+        Route::post(
+            'exams/{exam}/cancel',
+            [ExamController::class, 'cancel']
+        )->name('exams.cancel');
+
+        // Quick status update
+        Route::put(
+            'exams/{exam}/status',
+            [ExamController::class, 'updateStatus']
+        )->name('exams.update-status');
+
+        Route::get(
+            '/exams/search-classes',
+            [ExamController::class, 'searchClasses']
+        )->name('exams.search-classes');
+
+        /*
+|--------------------------------------------------------------------------
+| EXAM RESULTS / MARK ENTRY
+|--------------------------------------------------------------------------
+*/
+
+        // Mark entry page
+        Route::get(
+            'exams/{exam}/mark-entry',
+            [ExamController::class, 'markEntry']
+        )->name('exams.mark-entry');
+
+        // Save student marks
+        Route::post(
+            'exams/{exam}/save-marks',
+            [ExamController::class, 'saveMarks']
+        )->name('exams.save-marks');
+
+        // View exam results
+        Route::get(
+            'exams/{exam}/results',
+            [ExamController::class, 'results']
+        )->name('exams.results');
+
+        // Recalculate ranks
+        Route::post(
+            'exams/{exam}/recalculate-ranks',
+            [ExamController::class, 'recalculateRanks']
+        )->name('exams.recalculate-ranks');
+
+        Route::get(
+            'exams/{exam}/results/excel',
+            [ExamController::class, 'exportResultsExcel']
+        )->name('exams.results.excel');
+
+        Route::get(
+            'exams/{exam}/results/pdf',
+            [ExamController::class, 'exportResultsPdf']
+        )->name('exams.results.pdf');
+
 
         /*
         |--------------------------------------------------------------------------

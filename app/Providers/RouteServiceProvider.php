@@ -17,7 +17,7 @@ class RouteServiceProvider extends ServiceProvider
      *
      * @var string
      */
-    public const HOME = '/dashboard'; // මෙය '/dashboard' කරන්න
+    public const HOME = '/admin/dashboard'; // මෙය '/dashboard' කරන්න
 
     /**
      * The controller namespace for the application.
@@ -38,10 +38,16 @@ class RouteServiceProvider extends ServiceProvider
         $this->configureRateLimiting();
 
         $this->routes(function () {
+
             Route::prefix('api')
                 ->middleware('api')
                 ->namespace($this->namespace)
                 ->group(base_path('routes/api.php'));
+
+            Route::prefix('api/parent')
+                ->middleware('api')
+                ->namespace($this->namespace)
+                ->group(base_path('routes/parent.php'));
 
             Route::middleware('web')
                 ->namespace($this->namespace)
