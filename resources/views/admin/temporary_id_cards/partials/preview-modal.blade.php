@@ -21,14 +21,12 @@
                     <div class="tmp-card-preview">
                         <div class="id-card">
                             <div class="logo-section">
-                                <img src="{{ asset('storage/logo/logo.png') }}" class="logo-img" alt="Logo">
+                                <img src="{{ asset('storage/logo/black_logo.png') }}" class="logo-img" alt="Logo">
 
                                 <div class="institute-name">
-                                    <div class="title">MIHISARA</div>
+                                    <div class="title">MINIPALASA</div>
 
-                                    <div class="sub">HIGHER EDUCATION</div>
-
-                                    <div class="sub">INSTITUTE</div>
+                                    <div class="sub">EDUCATION CENTRE</div>
 
                                     <div class="name-line"></div>
                                 </div>

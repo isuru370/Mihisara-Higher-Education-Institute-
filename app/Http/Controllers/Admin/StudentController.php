@@ -8,8 +8,12 @@ use App\Http\Requests\Student\UpdateStudentRequest;
 use App\Models\Grade;
 use App\Models\Student;
 use App\Models\Admission;
+use App\Models\AdmissionPayment;
+use App\Models\StudentIdCard;
+use App\Models\TemporaryIdCard;
 use App\Services\StudentService;
 use App\Exports\StudentsExport;
+use App\Models\FcmToken;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -190,38 +194,81 @@ class StudentController extends Controller
 
     public function toggleActive(Student $student)
     {
+        DB::beginTransaction();
+
         try {
-            $student->update(['is_active' => !$student->is_active]);
+
+            $isActive = !$student->is_active;
+
+            $student->update([
+                'is_active' => $isActive,
+            ]);
+
+            // Student inactive කරන විට FCM tokens deactivate කරන්න
+            if (!$isActive) {
+                FcmToken::where('student_id', $student->id)
+                    ->update([
+                        'is_active' => false,
+                    ]);
+            }
+
+            DB::commit();
 
             return back()->with(
                 'success',
-                $student->is_active ? 'Student activated successfully.' : 'Student deactivated successfully.'
+                $isActive
+                    ? 'Student activated successfully.'
+                    : 'Student deactivated successfully.'
             );
         } catch (Exception $e) {
+
+            DB::rollBack();
+
             Log::error('Student active toggle failed', [
                 'student_id' => $student->id,
                 'error' => $e->getMessage(),
             ]);
 
-            return back()->with('error', 'Student status update failed.');
+            return back()->with(
+                'error',
+                'Student status update failed.'
+            );
         }
     }
 
     public function destroy(Student $student)
     {
+        DB::beginTransaction();
+
         try {
+
+            // Deactivate all FCM tokens
+            FcmToken::where('student_id', $student->id)
+                ->update([
+                    'is_active' => false,
+                ]);
+
+            // Soft delete student
             $student->delete();
+
+            DB::commit();
 
             return redirect()
                 ->route('students.index')
                 ->with('success', 'Student deleted successfully.');
         } catch (Exception $e) {
+
+            DB::rollBack();
+
             Log::error('Student delete failed', [
                 'student_id' => $student->id,
                 'error' => $e->getMessage(),
             ]);
 
-            return back()->with('error', 'Student delete failed.');
+            return back()->with(
+                'error',
+                'Student delete failed.'
+            );
         }
     }
 

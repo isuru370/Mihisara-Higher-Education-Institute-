@@ -26,6 +26,12 @@ class SaveFcmTokenRequest extends FormRequest
                 'max:255',
             ],
 
+            'device_id' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
             'device_name' => [
                 'nullable',
                 'string',

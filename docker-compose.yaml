@@ -40,7 +40,7 @@ services:
       sh -c "
       chown -R www-data:www-data /var/www/html/storage /var/www/html/public/uploads &&
       chmod -R 775 /var/www/html/storage /var/www/html/public/uploads &&
-      php artisan queue:work database --queue=sms,default --sleep=3 --tries=3 --timeout=30
+      php artisan queue:work database --queue=notifications,sms,default --sleep=3 --tries=3 --timeout=30
       "
 
 volumes:
