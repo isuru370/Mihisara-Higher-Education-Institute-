@@ -19,8 +19,20 @@ use Illuminate\Validation\Rule;
 use Throwable;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
+// ============================================
+// 🚀 IMPORT NOTIFICATION SERVICE
+// ============================================
+use App\Services\Notification\AttendanceNotificationService;
+
 class StudentAttendanceController extends Controller
 {
+    protected AttendanceNotificationService $attendanceNotification;
+
+    public function __construct(AttendanceNotificationService $attendanceNotification)
+    {
+        $this->attendanceNotification = $attendanceNotification;
+    }
+
     public function store(Request $request): JsonResponse
     {
         $validated = $this->validateRequest($request);
@@ -34,7 +46,10 @@ class StudentAttendanceController extends Controller
                 return $result['response'];
             }
 
-           // $this->sendSuccessSmsIfAvailable($result);
+            // ============================================
+            // 🚀 SEND ATTENDANCE NOTIFICATION
+            // ============================================
+            $this->sendAttendanceNotification($result);
 
             return $this->attendanceSuccessResponse($result);
         } catch (Throwable $e) {
@@ -46,6 +61,27 @@ class StudentAttendanceController extends Controller
             );
         }
     }
+
+    // ============================================
+    // 🚀 NEW METHOD: Send Attendance Notification
+    // ============================================
+    private function sendAttendanceNotification(array $result): void
+    {
+        $student = $result['student'];
+        $attendance = $result['attendance'];
+        $enrollment = $result['enrollment'];
+
+        // Call the notification service
+        $this->attendanceNotification->sendSuccess(
+            $student,
+            $attendance,
+            $enrollment
+        );
+    }
+
+    // ============================================
+    // EXISTING METHODS (Unchanged)
+    // ============================================
 
     private function validateRequest(Request $request): array
     {
@@ -219,45 +255,6 @@ class StudentAttendanceController extends Controller
         );
     }
 
-    private function sendSuccessSmsIfAvailable(array $result): void
-    {
-        $student = $result['student'];
-        $attendance = $result['attendance'];
-        $enrollment = $result['enrollment'];
-
-        $guardianMobile = $student->guardian_mobile;
-
-        if (! $guardianMobile) {
-            return;
-        }
-
-        $enrollment?->loadMissing([
-            'studentClass.grade',
-            'classCategoryFee.category',
-        ]);
-
-        SendAttendanceSuccessSmsJob::dispatch(
-            $guardianMobile,
-            $this->buildSmsMessage($student, $attendance, $enrollment)
-        );
-    }
-
-    private function buildSmsMessage(
-        Student $student,
-        StudentAttendance $attendance,
-        ?StudentClassEnrollment $enrollment
-    ): string {
-        return sprintf(
-            'Attendance marked. Student: %s, Class: %s, Category: %s, Grade: %s, Date: %s, Time: %s. Thank you.',
-            $student->initial_name ?? $student->custom_id ?? 'Student',
-            $enrollment?->studentClass?->class_name ?? 'N/A',
-            $enrollment?->classCategoryFee?->category?->category_name ?? 'N/A',
-            $enrollment?->studentClass?->grade?->grade_name ?? 'N/A',
-            $attendance->attended_at?->format('Y-m-d') ?? now()->format('Y-m-d'),
-            $attendance->attended_at?->format('H:i') ?? now()->format('H:i')
-        );
-    }
-
     private function attendanceSuccessResponse(array $result): JsonResponse
     {
         $student = $result['student'];
@@ -279,7 +276,7 @@ class StudentAttendanceController extends Controller
                 'initial_name' => $student->initial_name,
             ],
             'enrollment_status' => $enrollment ? 'enrolled' : 'new_student',
-            'sms_queued' => (bool) $student->guardian_mobile,
+            'notification_sent' => true,
         ]);
     }
 
@@ -321,7 +318,6 @@ class StudentAttendanceController extends Controller
     public function studentAttendanceHistory(int $studentId, int $enrolledId)
     {
         try {
-
             $enrollment = StudentClassEnrollment::query()
                 ->where('id', $enrolledId)
                 ->where('student_id', $studentId)
@@ -340,7 +336,6 @@ class StudentAttendanceController extends Controller
                 ->orderBy('start_time')
                 ->get();
 
-
             $attendanceMap = StudentAttendance::query()
                 ->where('student_id', $studentId)
                 ->where('student_class_enrollment_id', $enrolledId)
@@ -348,31 +343,18 @@ class StudentAttendanceController extends Controller
                 ->get()
                 ->keyBy('class_schedule_id');
 
-
             $history = $schedules->map(function ($schedule) use ($attendanceMap) {
-
                 $attendance = $attendanceMap->get($schedule->id);
-
                 $classDate = optional($schedule->class_date)?->toDateString();
                 $today = now()->toDateString();
 
-                // Future scheduled classes
                 if ($schedule->status === 'scheduled') {
                     $attendanceStatus = 'upcoming';
-                }
-
-                // Attendance marked
-                elseif ($attendance) {
+                } elseif ($attendance) {
                     $attendanceStatus = 'present';
-                }
-
-                // Today's class
-                elseif ($classDate === $today) {
+                } elseif ($classDate === $today) {
                     $attendanceStatus = 'today';
-                }
-
-                // Past class without attendance
-                else {
+                } else {
                     $attendanceStatus = 'absent';
                 }
 
@@ -397,6 +379,7 @@ class StudentAttendanceController extends Controller
                 'today_count' => $history->where('attendance_status', 'today')->count(),
                 'upcoming_count' => $history->where('attendance_status', 'upcoming')->count(),
             ];
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -409,7 +392,6 @@ class StudentAttendanceController extends Controller
                 ],
             ]);
         } catch (ModelNotFoundException $e) {
-
             Log::warning('Student Enrollment Not Found', [
                 'student_id' => $studentId,
                 'enrolled_id' => $enrolledId,
@@ -420,7 +402,6 @@ class StudentAttendanceController extends Controller
                 'message' => 'Student enrollment not found.',
             ], 404);
         } catch (Throwable $e) {
-
             Log::error('Student Attendance History Error', [
                 'student_id' => $studentId,
                 'enrolled_id' => $enrolledId,

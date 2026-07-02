@@ -144,7 +144,6 @@
                                 <th>Receipt No</th>
                                 <th>Type</th>
                                 <th>Amount</th>
-                                <th>Status</th>
                                 <th>Date & Time</th>
                                 <th>Actions</th>
                             </tr>
@@ -155,16 +154,9 @@
                                     <td>
                                         <div class="receipt-number">
                                             <i class="bi bi-receipt-cutoff"></i>
-
-                                            @if($receipt['status'] === 'Active')
-                                                <a href="{{ $receipt['url'] }}" class="receipt-link">
-                                                    {{ $receipt['receipt_number'] }}
-                                                </a>
-                                            @else
-                                                <span class="text-danger fw-bold">
-                                                    {{ $receipt['receipt_number'] }}
-                                                </span>
-                                            @endif
+                                            <a href="{{ $receipt['url'] }}" class="receipt-link">
+                                                {{ $receipt['receipt_number'] }}
+                                            </a>
                                         </div>
                                     </td>
                                     <td>
@@ -186,17 +178,6 @@
                                         <span class="amount">{{ number_format($receipt['amount'], 2) }}</span>
                                     </td>
                                     <td>
-                                        @if($receipt['status'] === 'Active')
-                                            <span class="badge bg-success">
-                                                Active
-                                            </span>
-                                        @else
-                                            <span class="badge bg-danger">
-                                                Deleted
-                                            </span>
-                                        @endif
-                                    </td>
-                                    <td>
                                         <div class="date-time-cell">
                                             <div class="date">
                                                 <i class="bi bi-calendar3"></i>
@@ -210,23 +191,16 @@
                                     </td>
                                     <td>
                                         <div class="action-buttons">
-
-                                            @if($receipt['status'] === 'Active')
-                                                <a href="{{ $receipt['url'] }}" class="action-btn view-btn" title="View Receipt">
-                                                    <i class="bi bi-eye"></i>
-                                                </a>
-                                            @else
-                                                <span class="badge bg-danger">
-                                                    Deleted
-                                                </span>
-                                            @endif
-
+                                            <a href="{{ $receipt['url'] }}" class="action-btn view-btn" title="View Receipt">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            
                                         </div>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="text-center py-5">
+                                    <td colspan="6" class="text-center py-5">
                                         <div class="empty-state">
                                             <i class="bi bi-inbox"></i>
                                             <h5>No Receipts Found</h5>

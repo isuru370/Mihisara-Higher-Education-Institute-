@@ -95,6 +95,30 @@ class Student extends Model
         return $this->hasMany(FcmToken::class);
     }
 
+    /**
+     * Get active FCM tokens for the student.
+     */
+    public function activeFcmTokens(): HasMany
+    {
+        return $this->fcmTokens()->where('is_active', true);
+    }
+
+    /**
+     * Get the notifications for the student.
+     */
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    /**
+     * Get unread notifications for the student.
+     */
+    public function unreadNotifications(): HasMany
+    {
+        return $this->notifications()->whereNull('read_at');
+    }
+
     public function mobileDevices()
     {
         return $this->hasMany(MobileDevice::class);

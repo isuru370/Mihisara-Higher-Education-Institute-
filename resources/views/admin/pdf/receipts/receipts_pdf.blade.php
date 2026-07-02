@@ -175,28 +175,6 @@
             color: #991b1b;
         }
 
-        .status-active {
-            background: #dcfce7;
-            color: #166534;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 7px;
-            font-weight: bold;
-        }
-
-        .status-deleted {
-            background: #fee2e2;
-            color: #991b1b;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 7px;
-            font-weight: bold;
-        }
-
-        .deleted-row {
-            background: #fef2f2 !important;
-        }
-
         /* Receipt Number */
         .receipt-code {
             font-family: monospace;
@@ -265,20 +243,8 @@
                 <div class="summary-value total">{{ $totalReceipts }}</div>
             </td>
             <td>
-                <div class="summary-label">ACTIVE</div>
-                <div class="summary-value amount">{{ $activeReceipts }}</div>
-            </td>
-            <td>
-                <div class="summary-label">DELETED</div>
-                <div class="summary-value" style="color:#dc2626">
-                    {{ $deletedReceipts }}
-                </div>
-            </td>
-            <td>
-                <div class="summary-label">ACTIVE TOTAL</div>
-                <div class="summary-value amount">
-                    Rs. {{ number_format($totalAmount, 2) }}
-                </div>
+                <div class="summary-label">TOTAL AMOUNT</div>
+                <div class="summary-value amount">Rs. {{ number_format($totalAmount, 2) }}</div>
             </td>
         </tr>
     </table>
@@ -287,66 +253,37 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 20%;">Receipt Number</th>
-                <th style="width: 25%;">Type</th>
-                <th style="width: 15%;">Status</th>
+                <th style="width: 25%;">Receipt Number</th>
+                <th style="width: 30%;">Type</th>
                 <th style="width: 20%;" class="text-right">Amount</th>
-                <th style="width: 20%;">Date</th>
+                <th style="width: 25%;">Date</th>
             </tr>
         </thead>
         <tbody>
             @forelse($receipts as $receipt)
-                <tr class="{{ $receipt['status'] === 'Deleted' ? 'deleted-row' : '' }}">
-
+                <tr>
                     <td>
-                        <span class="receipt-code">
-                            {{ $receipt['receipt_number'] }}
-                        </span>
+                        <span class="receipt-code">{{ $receipt['receipt_number'] }}</span>
                     </td>
-
                     <td>
                         @php
                             $type = strtolower($receipt['type']);
-
                             $typeClass = match ($type) {
                                 'payment', 'student payment' => 'type-payment',
-                                'admission payment' => 'type-admission',
-                                'extra income' => 'type-extra',
-                                default => 'type-payment',
+                                'admission' => 'type-admission',
+                                'extra', 'extra income' => 'type-extra',
+                                'refund' => 'type-refund',
+                                default => 'type-payment'
                             };
                         @endphp
-
-                        <span class="type-badge {{ $typeClass }}">
-                            {{ $receipt['type'] }}
-                        </span>
+                        <span class="type-badge {{ $typeClass }}">{{ $receipt['type'] }}</span>
                     </td>
-
-                    <td class="text-center">
-                        @if($receipt['status'] === 'Active')
-                            <span class="status-active">
-                                ACTIVE
-                            </span>
-                        @else
-                            <span class="status-deleted">
-                                DELETED
-                            </span>
-                        @endif
-                    </td>
-
-                    <td class="text-right amount">
-                        Rs. {{ number_format($receipt['amount'], 2) }}
-                    </td>
-
-                    <td>
-                        {{ \Carbon\Carbon::parse($receipt['date'])->format('d M Y') }}
-                    </td>
-
+                    <td class="text-right amount amount-income">Rs. {{ number_format($receipt['amount'], 2) }}</td>
+                    <td>{{ \Carbon\Carbon::parse($receipt['date'])->format('d M Y') }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5" class="text-center">
-                        No receipts found.
-                    </td>
+                    <td colspan="4" class="text-center">No receipts found.</td>
                 </tr>
             @endforelse
         </tbody>
@@ -354,10 +291,8 @@
 
     {{-- Footer Total --}}
     <div class="footer-total">
-        <span class="label">ACTIVE RECEIPTS TOTAL :</span>
-        <span class="value">
-            Rs. {{ number_format($totalAmount, 2) }}
-        </span>
+        <span class="label">GRAND TOTAL :</span>
+        <span class="value">Rs. {{ number_format($totalAmount, 2) }}</span>
     </div>
 
     {{-- Footer --}}

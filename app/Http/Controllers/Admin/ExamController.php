@@ -786,56 +786,60 @@ class ExamController extends Controller
             )
         );
     }
-    public function recalculateRanks(
-        int $id
-    ): RedirectResponse {
+    public function recalculateRanks(int $id): RedirectResponse
+{
+    try {
 
-        try {
+        DB::beginTransaction();
 
-            DB::beginTransaction();
+        $results = StudentResult::where(
+            'exam_id',
+            $id
+        )
+        ->orderByDesc('marks')
+        ->get();
 
-            $results = StudentResult::where(
-                'exam_id',
-                $id
-            )
-                ->orderByDesc('marks')
-                ->get();
+        $rank = 1;
 
-            $rank = 1;
+        foreach ($results as $result) {
 
-            foreach ($results as $result) {
+            $result->update([
+                'rank' => $rank,
+            ]);
 
-                $result->update([
-                    'rank' => $rank
-                ]);
-
-                $rank++;
-            }
-
-            DB::commit();
-
-            return back()->with(
-                'success',
-                'Ranks recalculated successfully.'
-            );
-        } catch (\Throwable $e) {
-
-            DB::rollBack();
-
-            Log::error(
-                'Error recalculating ranks',
-                [
-                    'exam_id' => $id,
-                    'message' => $e->getMessage()
-                ]
-            );
-
-            return back()->with(
-                'error',
-                'Failed to recalculate ranks.'
-            );
+            $rank++;
         }
+
+        // Update exam status
+        Exam::where('id', $id)->update([
+            'status' => 'Completed',
+        ]);
+
+        DB::commit();
+
+        return back()->with(
+            'success',
+            'Ranks recalculated successfully.'
+        );
+
+    } catch (\Throwable $e) {
+
+        DB::rollBack();
+
+        Log::error(
+            'Error recalculating ranks',
+            [
+                'exam_id' => $id,
+                'message' => $e->getMessage(),
+            ]
+        );
+
+        return back()->with(
+            'error',
+            'Failed to recalculate ranks.'
+        );
     }
+}
 
     public function searchClasses(Request $request)
     {

@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\DailyReportController;
 use App\Http\Controllers\Admin\DatabaseBackupController;
 use App\Http\Controllers\Admin\ExamController;
 use App\Http\Controllers\Admin\ExtraIncomeController;
+use App\Http\Controllers\Admin\FcmTokenController;
 use App\Http\Controllers\Admin\ForgotPasswordController;
 use App\Http\Controllers\Admin\GradeController;
 use App\Http\Controllers\Admin\ImageUploadController;
@@ -30,6 +31,7 @@ use App\Http\Controllers\Admin\InstitutePaymentReportController;
 use App\Http\Controllers\Admin\InstituteReportController;
 use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Admin\MonthlyReportController;
+use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\ReceiptController;
 use App\Http\Controllers\Admin\StudentIDCardController;
 use App\Http\Controllers\Admin\StudentImageController;
@@ -1058,4 +1060,110 @@ Route::middleware([
             '/receipts/export/pdf',
             [ReceiptController::class, 'exportPdf']
         )->name('receipts.export.pdf');
+
+        // Notification Routes
+        Route::prefix('notifications')
+            ->name('notifications.')
+            ->group(function () {
+
+                // List all notifications
+                Route::get('/', [NotificationController::class, 'index'])
+                    ->name('index');
+
+                // Create notification
+                Route::get('/create', [NotificationController::class, 'create'])
+                    ->name('create');
+
+                // Store notification
+                Route::post('/', [NotificationController::class, 'store'])
+                    ->name('store');
+
+                // Bulk send notification
+                Route::post('/bulk', [NotificationController::class, 'sendBulk'])
+                    ->name('bulk');
+
+                // Show single notification
+                Route::get('/{id}', [NotificationController::class, 'show'])
+                    ->name('show');
+
+                // Mark as read
+                Route::post('/{id}/read', [NotificationController::class, 'markAsRead'])
+                    ->name('mark-read');
+
+                // Mark all as read
+                Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead'])
+                    ->name('mark-all-read');
+
+                // Retry failed notification
+                Route::post('/{id}/retry', [NotificationController::class, 'retry'])
+                    ->name('retry');
+
+                // Cancel notification
+                Route::post('/{id}/cancel', [NotificationController::class, 'cancel'])
+                    ->name('cancel');
+
+                // Delete notification
+                Route::delete('/{id}', [NotificationController::class, 'destroy'])
+                    ->name('destroy');
+
+                // Delete old notifications
+                Route::delete('/cleanup', [NotificationController::class, 'deleteOld'])
+                    ->name('cleanup');
+
+                // Export notifications
+                Route::get('/export', [NotificationController::class, 'export'])
+                    ->name('export');
+            });
+
+        // ============================================
+        // FCM TOKEN ROUTES
+        // ============================================
+        Route::prefix('fcm-tokens')
+            ->name('fcm-tokens.')
+            ->group(function () {
+
+                // List all tokens
+                Route::get('/', [FcmTokenController::class, 'index'])
+                    ->name('index')
+                    ->middleware('permission:fcm-tokens.view');
+
+                // Show single token
+                Route::get('/{id}', [FcmTokenController::class, 'show'])
+                    ->name('show')
+                    ->middleware('permission:fcm-tokens.view');
+
+                // Student tokens
+                Route::get('/student/{studentId}', [FcmTokenController::class, 'studentTokens'])
+                    ->name('student')
+                    ->middleware('permission:fcm-tokens.view');
+
+                // Activate token
+                Route::post('/{id}/activate', [FcmTokenController::class, 'activate'])
+                    ->name('activate')
+                    ->middleware('permission:fcm-tokens.update');
+
+                // Deactivate token
+                Route::post('/{id}/deactivate', [FcmTokenController::class, 'deactivate'])
+                    ->name('deactivate')
+                    ->middleware('permission:fcm-tokens.update');
+
+                // Delete token
+                Route::delete('/{id}', [FcmTokenController::class, 'destroy'])
+                    ->name('destroy')
+                    ->middleware('permission:fcm-tokens.delete');
+
+                // Delete all inactive tokens
+                Route::delete('/inactive/delete', [FcmTokenController::class, 'deleteInactive'])
+                    ->name('delete-inactive')
+                    ->middleware('permission:fcm-tokens.delete');
+
+                // Export tokens
+                Route::get('/export', [FcmTokenController::class, 'export'])
+                    ->name('export')
+                    ->middleware('permission:fcm-tokens.view');
+
+                // Stats (AJAX)
+                Route::get('/stats', [FcmTokenController::class, 'stats'])
+                    ->name('stats');
+            });
     });

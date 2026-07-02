@@ -7,6 +7,7 @@ use App\Http\Controllers\API\ClassScheduleController;
 use App\Http\Controllers\API\GradeController;
 use App\Http\Controllers\API\InstituteHallController;
 use App\Http\Controllers\API\MobileDashboardController;
+use App\Http\Controllers\API\Notification\NotificationController;
 use App\Http\Controllers\API\QuickPhotoController;
 use App\Http\Controllers\API\StudentAttendanceController;
 use App\Http\Controllers\API\StudentAttendanceReadController;
@@ -327,4 +328,35 @@ Route::middleware([
         '/mobile-dashboard',
         [MobileDashboardController::class, 'mobileDashboardDetails']
     );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Notifications (Send, Manage)
+    |--------------------------------------------------------------------------
+    */
+
+    Route::prefix('/notifications')->group(function () {
+        // Send notifications
+        Route::post('/send', [NotificationController::class, 'send']);
+        Route::post('/send-now', [NotificationController::class, 'sendNow']);
+        Route::post('/bulk', [NotificationController::class, 'sendBulk']);
+        Route::post('/send-to-all', [NotificationController::class, 'sendToAll']);
+        Route::post('/send-to-grade/{grade}', [NotificationController::class, 'sendToGrade']);
+
+        // Get notification status
+        Route::get('/{id}/status', [NotificationController::class, 'status']);
+
+        // Manage notifications
+        Route::post('/{id}/retry', [NotificationController::class, 'retry']);
+        Route::post('/{id}/cancel', [NotificationController::class, 'cancel']);
+        Route::post('/{id}/read', [NotificationController::class, 'markAsRead']);
+
+        // List and filter
+        Route::get('/', [NotificationController::class, 'index']);
+        Route::get('/student/{studentId}/history', [NotificationController::class, 'history']);
+
+        // Stats and maintenance
+        Route::get('/stats', [NotificationController::class, 'stats']);
+        Route::delete('/cleanup', [NotificationController::class, 'deleteOld']);
+    });
 });

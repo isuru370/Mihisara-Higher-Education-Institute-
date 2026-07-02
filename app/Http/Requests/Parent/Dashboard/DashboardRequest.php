@@ -21,4 +21,16 @@ class DashboardRequest extends FormRequest
             ],
         ];
     }
+
+    /**
+     * Custom Validation Messages
+     */
+    public function messages(): array
+    {
+        return [
+            'student_id.required' => 'Student ID is required.',
+            'student_id.integer'  => 'Student ID must be an integer.',
+            'student_id.exists'   => 'Selected student does not exist.',
+        ];
+    }
 }

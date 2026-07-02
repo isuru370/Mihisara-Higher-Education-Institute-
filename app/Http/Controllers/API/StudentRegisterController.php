@@ -38,7 +38,7 @@ class StudentRegisterController extends Controller
                 },
             ],
             'quick_image_id' => [
-                'nullable',
+                'required',
                 'string',
                 function ($attribute, $value, $fail) {
                     if (!$this->studentService->validateQuickPhoto($value)) {
@@ -61,22 +61,13 @@ class StudentRegisterController extends Controller
             $imgUrl = $this->studentService->getDefaultImageUrl($validated['gender']);
 
             // Assign quick photo if available
-            $quickPhotoPath = null;
-
-            if (!empty($validated['quick_image_id'])) {
-                $quickPhotoPath = $this->studentService->assignQuickPhoto(
-                    $validated['quick_image_id'],
-                    new Student()
-                );
-            }
+            $quickPhotoPath = $this->studentService->assignQuickPhoto(
+                $validated['quick_image_id'],
+                new Student() // Temporary - will be updated after student creation
+            );
 
             if ($quickPhotoPath) {
                 $imgUrl = $quickPhotoPath;
-            } else {
-                $imgUrl = $this->studentService->handleStudentImage(
-                    null,
-                    $validated['gender']
-                );
             }
 
             // Create student
