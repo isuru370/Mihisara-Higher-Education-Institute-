@@ -110,14 +110,31 @@ class StudentService
                 $student->custom_id
             );
 
-            SendStudentPortalLoginSms::dispatch(
-                $student->guardian_mobile,
-                $student->custom_id,
-                $plainPassword
-            );
+            // SendStudentPortalLoginSms::dispatch(
+            //     $student->guardian_mobile,
+            //     $student->custom_id,
+            //     $plainPassword
+            // );
         });
 
         return $plainPassword;
+    }
+
+    public function resetPortalPassword(StudentPortalLogin $login)
+    {
+        $plainPassword = $this->generateStudentPassword(
+            $login->student->initial_name,
+            $login->student->guardian_mobile
+        );
+
+        $login->password = $plainPassword;
+        $login->save();
+
+        SendStudentPortalLoginSms::dispatch(
+            $login->student->guardian_mobile,
+            $login->username,
+            $plainPassword
+        );
     }
 
     /**
