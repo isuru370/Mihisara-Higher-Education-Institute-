@@ -464,6 +464,21 @@ Route::middleware([
         Route::get('class-schedules/category-view', [ClassScheduleController::class, 'categorySchedules'])
             ->name('class-schedules.categorySchedules');
 
+        Route::get(
+            'class-schedules/bulk-edit',
+            [ClassScheduleController::class, 'bulkEdit']
+        )->name('class-schedules.bulkEdit');
+
+        Route::put(
+            'class-schedules/patterns/{pattern}/bulk-update',
+            [ClassScheduleController::class, 'updateBulkSchedule']
+        )->name('class-schedules.updateBulkSchedule');
+
+        Route::get(
+            'class-schedules/patterns/{pattern}/edit',
+            [ClassScheduleController::class, 'editBulkSchedule']
+        )->name('class-schedules.editBulkSchedule');
+
         Route::resource(
             'class-schedules',
             ClassScheduleController::class

@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
-use Throwable;
 
 class ClassScheduleController extends Controller
 {
@@ -779,5 +778,124 @@ class ClassScheduleController extends Controller
         }
 
         return Carbon::parse($classSchedule->class_date)->lte(today());
+    }
+
+
+
+    // bulk edit function 
+    public function bulkEdit(Request $request)
+    {
+        $request->validate([
+            'student_class_id' => 'required|exists:student_classes,id',
+            'class_category_fee_id' => 'required|exists:class_category_fees,id',
+        ]);
+
+        $studentClass = StudentClass::with([
+            'teacher',
+            'subject',
+            'grade',
+        ])->findOrFail($request->student_class_id);
+
+        $categoryFee = ClassCategoryFee::with('category')
+            ->findOrFail($request->class_category_fee_id);
+
+        $patterns = ClassSchedulePattern::where('student_class_id', $studentClass->id)
+            ->where('class_category_fee_id', $categoryFee->id)
+            ->orderBy('class_day')
+            ->orderBy('start_time')
+            ->get();
+
+        return view(
+            'admin.class_schedules.bulk-edit',
+            compact(
+                'studentClass',
+                'categoryFee',
+                'patterns'
+            )
+        );
+    }
+
+    public function editBulkSchedule(ClassSchedulePattern $pattern)
+    {
+        $pattern->load([
+            'studentClass.teacher',
+            'studentClass.subject',
+            'studentClass.grade',
+            'categoryFee.category',
+            'hall',
+        ]);
+
+        $halls = ClassHall::where('is_active', true)->get();
+
+        $studentClass = $pattern->studentClass;
+        $categoryFee = $pattern->categoryFee;
+
+        return view(
+            'admin.class_schedules.edit-bulk',
+            compact(
+                'pattern',
+                'studentClass',
+                'categoryFee',
+                'halls'
+            )
+        );
+    }
+
+    public function updateBulkSchedule(Request $request, ClassSchedulePattern $pattern)
+    {
+        $validated = $request->validate([
+            'class_day'      => 'required|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
+            'class_hall_id'  => 'nullable|exists:class_halls,id',
+            'start_date'     => 'required|date',
+            'end_date'       => 'required|date|after_or_equal:start_date',
+            'start_time'     => 'required|date_format:H:i',
+            'end_time'       => 'required|date_format:H:i|after:start_time',
+            'is_active'      => 'nullable|boolean',
+            'note'           => 'nullable|string',
+        ]);
+
+        try {
+
+            DB::transaction(function () use ($pattern, $validated) {
+
+
+                $pattern->update([
+                    'class_hall_id' => $validated['class_hall_id'],
+                    'start_date'    => $validated['start_date'],
+                    'end_date'      => $validated['end_date'],
+                    'start_time'    => $validated['start_time'],
+                    'end_time'      => $validated['end_time'],
+                    'class_day'     => $validated['class_day'],
+                    'is_active'     => $validated['is_active'] ?? true,
+                    'note'          => $validated['note'] ?? null,
+                ]);
+
+
+                $this->classScheduleService
+                    ->regenerateFutureSchedules($pattern);
+
+            });
+
+            return redirect()->route(
+                'admin.class-schedules.bulkEdit',
+                [
+                    'student_class_id'      => $pattern->student_class_id,
+                    'class_category_fee_id' => $pattern->class_category_fee_id,
+                ]
+            )->with('success', 'Bulk schedule updated successfully.');
+        } catch (\Throwable $e) {
+
+            Log::error('Bulk Schedule Update Failed', [
+                'pattern_id' => $pattern->id,
+                'message'    => $e->getMessage(),
+                'line'       => $e->getLine(),
+                'file'       => $e->getFile(),
+                'trace'      => $e->getTraceAsString(),
+            ]);
+
+            return back()
+                ->withInput()
+                ->with('error', 'Failed to update schedule.');
+        }
     }
 }

@@ -8,6 +8,7 @@ use App\Models\ClassSchedule;
 use App\Models\ClassSchedulePattern;
 use App\Models\StudentClassEnrollment;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class ClassScheduleService
@@ -136,5 +137,64 @@ class ClassScheduleService
                 $message
             );
         }
+    }
+
+    public function generateRecurringSchedules(ClassSchedulePattern $pattern)
+    {
+        $start = Carbon::parse($pattern->start_date);
+        $end = Carbon::parse($pattern->end_date);
+
+        $date = $start->copy();
+
+        while ($date->lte($end)) {
+
+            $dayOfWeek = strtolower($date->format('l'));
+
+            if ($dayOfWeek === strtolower($pattern->class_day)) {
+
+                $exists = ClassSchedule::where('student_class_id', $pattern->student_class_id)
+                    ->where('class_category_fee_id', $pattern->class_category_fee_id)
+                    ->whereDate('class_date', $date->toDateString())
+                    ->where('start_time', $pattern->start_time)
+                    ->where('end_time', $pattern->end_time)
+                    ->whereNull('deleted_at')
+                    ->exists();
+
+                if (!$exists) {
+
+                    ClassSchedule::create([
+                        'class_schedule_pattern_id' => $pattern->id,
+                        'student_class_id'          => $pattern->student_class_id,
+                        'class_category_fee_id'     => $pattern->class_category_fee_id,
+                        'class_hall_id'             => $pattern->class_hall_id,
+                        'class_date'                => $date->toDateString(),
+                        'start_time'                => $pattern->start_time,
+                        'end_time'                  => $pattern->end_time,
+                        'day_of_week'               => $dayOfWeek,
+                        'status'                    => 'scheduled',
+                        'is_active'                 => $pattern->is_active,
+                        'note'                      => $pattern->note,
+                    ]);
+                }
+            }
+
+            $date->addDay();
+        }
+    }
+
+    /**
+     * Delete future schedules and regenerate.
+     */
+    public function regenerateFutureSchedules(ClassSchedulePattern $pattern)
+    {
+        DB::transaction(function () use ($pattern) {
+
+            ClassSchedule::where('class_schedule_pattern_id', $pattern->id)
+                ->whereDate('class_date', '>=', today())
+                ->where('status', 'scheduled')
+                ->delete();
+
+            $this->generateRecurringSchedules($pattern);
+        });
     }
 }
