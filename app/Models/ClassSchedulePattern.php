@@ -48,11 +48,6 @@ class ClassSchedulePattern extends Model
         return $this->belongsTo(ClassHall::class, 'class_hall_id');
     }
 
-    public function pattern()
-    {
-        return $this->belongsTo(ClassSchedulePattern::class, 'class_schedule_pattern_id');
-    }
-
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
