@@ -122,6 +122,17 @@
                     </button>
                 </div>
             @endif
+            @if (hasPermission('student-class-management.index'))
+                <div class="nav-item">
+                    <button type="button"
+                        class="nav-link-custom {{ request()->routeIs('admin.student-class-management.*') ? 'active' : '' }}"
+                        data-route="admin.student-class-management.index"
+                        data-href="{{ route('admin.student-class-management.index') }}">
+                        <i class="bi bi-person-workspace"></i>
+                        <span>Student Class Mgmt</span>
+                    </button>
+                </div>
+            @endif
         </div>
 
         <div class="sidebar-section">

@@ -90,84 +90,69 @@
                         </div>
 
                         <div class="class-card-body">
-                            @if ($class->categoryFees->count())
+                            @if($class->categoryFees->count())
                                 <div class="row g-3">
-                                    @foreach ($class->categoryFees as $fee)
-                                        @php
-                                            $category = $fee->category;
-                                        @endphp
+                                    @foreach($class->categoryFees as $fee)
+                                                    @php
+                                                        $category = $fee->category;
+                                                    @endphp
 
-                                        <div class="col-xl-4 col-lg-6 col-md-6">
-                                            <div class="category-card">
-                                                <div class="category-card-top">
-                                                    <div>
-                                                        <div class="category-name">
-                                                            {{ optional($category)->category_name ?? 'N/A' }}
+                                                    <div class="col-xl-4 col-lg-6 col-md-6">
+                                                        <div class="category-card">
+                                                            <div class="category-card-top">
+                                                                <div>
+                                                                    <div class="category-name">
+                                                                        {{ optional($category)->category_name ?? 'N/A' }}
+                                                                    </div>
+
+                                                                    <div class="category-code">
+                                                                        @if(optional($category)->code)
+                                                                            {{ $category->code }}
+                                                                        @else
+                                                                            No code
+                                                                        @endif
+                                                                    </div>
+                                                                </div>
+
+                                                                <div class="category-fee">
+                                                                    {{ number_format($fee->fee, 2) }}
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="category-card-bottom">
+                                                                <div class="text-muted small">
+                                                                    Fee category details
+                                                                </div>
+
+                                                                <div class="action-group">
+
+                                                                    {{-- CREATE SCHEDULE --}}
+                                                                    <a href="{{ route('admin.class-schedules.create', [
+                                            'student_class_id' => $class->id,
+                                            'class_category_fee_id' => $fee->id
+                                        ]) }}" class="btn btn-sm btn-primary icon-btn" title="Schedule this category">
+                                                                        <i class="bi bi-calendar-plus"></i>
+                                                                    </a>
+
+                                                                    {{-- VIEW SCHEDULES --}}
+                                                                    <a href="{{ route('admin.class-schedules.categorySchedules', [
+                                            'student_class_id' => $class->id,
+                                            'class_category_fee_id' => $fee->id
+                                        ]) }}" class="btn btn-sm btn-outline-success icon-btn" title="View schedules">
+                                                                        <i class="bi bi-eye"></i>
+                                                                    </a>
+
+                                                                </div>
+                                                            </div>
                                                         </div>
-
-                                                        <div class="category-code">
-                                                            @if (optional($category)->code)
-                                                                {{ $category->code }}
-                                                            @else
-                                                                No code
-                                                            @endif
-                                                        </div>
                                                     </div>
-
-                                                    <div class="category-fee">
-                                                        {{ number_format($fee->fee, 2) }}
-                                                    </div>
-                                                </div>
-
-                                                <div class="category-card-bottom">
-                                                    <div class="text-muted small">
-                                                        Fee category details
-                                                    </div>
-
-                                                    <div class="action-group">
-
-                                                        {{-- CREATE SCHEDULE --}}
-                                                        <a href="{{ route('admin.class-schedules.create', [
-                                                            'student_class_id' => $class->id,
-                                                            'class_category_fee_id' => $fee->id,
-                                                        ]) }}"
-                                                            class="btn btn-sm btn-primary icon-btn"
-                                                            title="Schedule this category">
-                                                            <i class="bi bi-calendar-plus"></i>
-                                                        </a>
-
-                                                        {{-- VIEW SCHEDULE --}}
-                                                        <a href="{{ route('admin.class-schedules.categorySchedules', [
-                                                            'student_class_id' => $class->id,
-                                                            'class_category_fee_id' => $fee->id,
-                                                        ]) }}"
-                                                            class="btn btn-sm btn-outline-success icon-btn"
-                                                            title="View schedules">
-                                                            <i class="bi bi-eye"></i>
-                                                        </a>
-
-                                                        {{-- BULK UPDATE --}}
-                                                        <a href="{{ route('admin.class-schedules.bulkEdit', [
-                                                            'student_class_id' => $class->id,
-                                                            'class_category_fee_id' => $fee->id,
-                                                        ]) }}"
-                                                            class="btn btn-sm btn-outline-warning icon-btn"
-                                                            title="Bulk Update Schedule">
-                                                            <i class="bi bi-pencil-square"></i>
-                                                        </a>
-
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
                                     @endforeach
                                 </div>
                             @else
                                 <div class="empty-box">
                                     <i class="bi bi-folder-x fs-2 d-block mb-2"></i>
                                     <div class="fw-semibold">No category fees found</div>
-                                    <div class="text-muted small">This class does not have any assigned category fee yet.
-                                    </div>
+                                    <div class="text-muted small">This class does not have any assigned category fee yet.</div>
                                 </div>
                             @endif
                         </div>
