@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\API\AdmissionPaymentController;
+use App\Http\Controllers\API\AttendanceReportController;
+use App\Http\Controllers\API\AttendanceScheduleController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\Auth\LoginController;
 use App\Http\Controllers\API\ClassScheduleController;
@@ -11,6 +13,7 @@ use App\Http\Controllers\API\Notification\NotificationController;
 use App\Http\Controllers\API\QuickPhotoController;
 use App\Http\Controllers\API\StudentAttendanceController;
 use App\Http\Controllers\API\StudentAttendanceReadController;
+use App\Http\Controllers\API\StudentAttendanceScanController;
 use App\Http\Controllers\API\StudentClassController;
 use App\Http\Controllers\API\StudentClassEnrollmentController;
 use App\Http\Controllers\API\StudentController;
@@ -210,6 +213,12 @@ Route::middleware([
         [StudentAttendanceReadController::class, 'read']
     )->name('api.attendance.read');
 
+    // new version of attendance scan
+    Route::post(
+        '/attendance/scan',
+        [StudentAttendanceScanController::class, 'scan']
+    )->name('api.attendance.scan');
+
 
 
     Route::post(
@@ -220,6 +229,16 @@ Route::middleware([
     Route::get(
         '/attendance/students/{studentId}/enrollments/{enrolledId}',
         [StudentAttendanceController::class, 'studentAttendanceHistory']
+    );
+
+    Route::post(
+        'attendance/schedules',
+        [AttendanceScheduleController::class, 'index']
+    );
+
+    Route::post(
+        'attendance/report',
+        [AttendanceReportController::class, 'index']
     );
 
 
