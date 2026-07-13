@@ -121,11 +121,6 @@
                         <i class="bi bi-plus-lg"></i> Add Class
                     </a>
 
-                    <a href="{{ route('admin.grades.index') }}" class="btn btn-outline-primary custom-btn">
-                        <i class="fas fa-graduation-cap me-1"></i>
-                        Grade
-                    </a>
-
                     <a href="{{ route('admin.class-categories.index') }}" class="btn btn-outline-primary custom-btn">
                         Categories
                     </a>
@@ -228,6 +223,7 @@
                     <tbody>
 
                         @forelse($classes as $class)
+
                             <tr>
 
                                 <td>
@@ -280,12 +276,16 @@
 
                                 <td>
 
-                                    @if ($class->paymentConfig)
+                                    @if($class->paymentConfig)
+
                                         <div class="small">T: {{ $class->paymentConfig->teacher_percentage }}%</div>
                                         <div class="small">O: {{ $class->paymentConfig->organizer_percentage }}%</div>
                                         <div class="small">I: {{ $class->paymentConfig->institution_percentage }}%</div>
+
                                     @else
+
                                         <span class="badge bg-light text-dark border">Not Set</span>
+
                                     @endif
 
                                 </td>
@@ -294,7 +294,7 @@
 
                                 <td>
 
-                                    @if ($class->is_active)
+                                    @if($class->is_active)
                                         <span class="badge bg-success">Active</span>
                                     @else
                                         <span class="badge bg-secondary">Inactive</span>
@@ -302,7 +302,7 @@
 
                                     <br>
 
-                                    @if ($class->is_ongoing)
+                                    @if($class->is_ongoing)
                                         <span class="badge bg-primary mt-1">Ongoing</span>
                                     @else
                                         <span class="badge bg-light text-dark border mt-1">Stopped</span>
@@ -316,29 +316,30 @@
 
                                     <div class="action-buttons">
 
-                                        <a href="{{ route('admin.student-classes.show', $class) }}"
-                                            class="action-btn view-btn">
+                                        <a href="{{ route('admin.student-classes.show', $class) }}" class="action-btn view-btn">
                                             <i class="bi bi-eye-fill"></i>
                                         </a>
 
-                                        <a href="{{ route('admin.student-classes.edit', $class) }}"
-                                            class="action-btn edit-btn">
+                                        <a href="{{ route('admin.student-classes.edit', $class) }}" class="action-btn edit-btn">
                                             <i class="bi bi-pencil-fill"></i>
                                         </a>
 
-                                        @if ($class->is_active)
+                                        @if($class->is_active)
+
                                             <a href="{{ route('admin.class-category-fees.create', ['student_class_id' => $class->id]) }}"
                                                 class="action-btn toggle-btn">
                                                 <i class="bi bi-cash-stack"></i>
                                             </a>
+
                                         @else
+
                                             <button class="action-btn toggle-btn" disabled>
                                                 <i class="bi bi-cash-stack"></i>
                                             </button>
+
                                         @endif
 
-                                        <form method="POST"
-                                            action="{{ route('admin.student-classes.toggleActive', $class) }}">
+                                        <form method="POST" action="{{ route('admin.student-classes.toggleActive', $class) }}">
 
                                             @csrf
                                             @method('PATCH')
@@ -373,6 +374,7 @@
                                     No classes found
                                 </td>
                             </tr>
+
                         @endforelse
 
                     </tbody>
@@ -392,6 +394,7 @@
 @endsection
 
 @push('styles')
+
     <style>
         .classes-page {
             animation: fadeIn .4s ease;
@@ -724,4 +727,5 @@
             }
         }
     </style>
+
 @endpush

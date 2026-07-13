@@ -33,6 +33,7 @@ use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Admin\MonthlyReportController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\ReceiptController;
+use App\Http\Controllers\Admin\StudentClassManagementController;
 use App\Http\Controllers\Admin\StudentIDCardController;
 use App\Http\Controllers\Admin\StudentImageController;
 use App\Http\Controllers\Admin\StudentPaymentController;
@@ -1029,9 +1030,9 @@ Route::middleware([
 |--------------------------------------------------------------------------
 */
 
-        Route::get('/activity-logs', [App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('activity-logs.index');
-        Route::get('/activity-logs/export', [App\Http\Controllers\Admin\ActivityLogController::class, 'export'])->name('activity-logs.export');
-        Route::post('/activity-logs/clear', [App\Http\Controllers\Admin\ActivityLogController::class, 'clearOld'])->name('activity-logs.clear');
+        Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
+        Route::get('/activity-logs/export', [ActivityLogController::class, 'export'])->name('activity-logs.export');
+        Route::post('/activity-logs/clear', [ActivityLogController::class, 'clearOld'])->name('activity-logs.clear');
 
 
         /*
@@ -1180,5 +1181,45 @@ Route::middleware([
                 // Stats (AJAX)
                 Route::get('/stats', [FcmTokenController::class, 'stats'])
                     ->name('stats');
+            });
+
+            Route::prefix('student-class-management')
+            ->name('student-class-management.')
+            ->controller(StudentClassManagementController::class)
+            ->group(function () {
+
+                // Main page
+                Route::get('/', 'index')->name('index');
+
+                // ✅ Search - Support both GET and POST
+                Route::match(['GET', 'POST'], '/search-student', 'searchStudentClasses')
+                    ->name('search');
+
+                // OR use ANY (supports all methods)
+                // Route::any('/search-student', 'searchStudentClasses')->name('search');
+
+                // Show student classes
+                Route::get('/student/{studentId}', 'showStudentClasses')->name('show');
+
+                // Toggle status - PUT
+                Route::put('/{enrollmentId}/toggle-status', 'toggleClassStatus')->name('toggle-status');
+
+                // Deactivate - PUT
+                Route::put('/{enrollmentId}/deactivate', 'deactivateClass')->name('deactivate');
+
+                // Activate - PUT
+                Route::put('/{enrollmentId}/activate', 'activateClass')->name('activate');
+
+                // Toggle all - PUT
+                Route::put('/student/{studentId}/toggle-all', 'toggleAllClassesStatus')->name('toggle-all');
+
+                // Assign form - GET
+                Route::get('/assign/{studentId?}', 'showAssignClassForm')->name('assign-form');
+
+                // Assign store - POST
+                Route::post('/assign', 'assignClassToStudent')->name('assign');
+
+                // Get category fees - GET (AJAX)
+                Route::get('/class/{classId}/category-fees', 'getCategoryFees')->name('get-category-fees');
             });
     });
