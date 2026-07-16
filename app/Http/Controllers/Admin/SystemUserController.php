@@ -19,10 +19,17 @@ class SystemUserController extends Controller
 {
     public function index(): View
     {
-        $systemUsers = SystemUser::with('user')
-            ->whereHas('user', function ($q) {
-                $q->where('email', '!=', 'admin@nexorait.lk');
-            })
+        $query = SystemUser::with(['user.userType']);
+
+        // SUPER_ADMIN නොවන user කෙනෙක් නම් SUPER_ADMIN users hide කරන්න
+        if (auth()->user()->userType->code !== 'SUPER_ADMIN') {
+
+            $query->whereHas('user.userType', function ($q) {
+                $q->where('code', '!=', 'SUPER_ADMIN');
+            });
+        }
+
+        $systemUsers = $query
             ->latest()
             ->paginate(10);
 

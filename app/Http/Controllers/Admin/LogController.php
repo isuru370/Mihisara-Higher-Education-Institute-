@@ -71,7 +71,7 @@ class LogController extends Controller
             }
 
             return redirect()
-                ->route('admin.logs.laravel.index')
+                ->route('logs.laravel.index')
                 ->with('success', 'Laravel log file cleared successfully.');
         } catch (Throwable $e) {
             Log::error('Laravel log clear failed', [
@@ -82,7 +82,7 @@ class LogController extends Controller
             ]);
 
             return redirect()
-                ->route('admin.logs.laravel.index')
+                ->route('logs.laravel.index')
                 ->with('error', 'Unable to clear log file.');
         }
     }
@@ -94,7 +94,7 @@ class LogController extends Controller
 
             if (!File::exists($path)) {
                 return redirect()
-                    ->route('admin.logs.laravel.index')
+                    ->route('logs.laravel.index')
                     ->with('error', 'Laravel log file not found.');
             }
 
@@ -111,7 +111,7 @@ class LogController extends Controller
             ]);
 
             return redirect()
-                ->route('admin.logs.laravel.index')
+                ->route('logs.laravel.index')
                 ->with('error', 'Unable to download log file.');
         }
     }

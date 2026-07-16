@@ -148,7 +148,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <form action="{{ route('admin.logs.laravel.clear') }}" method="POST" id="clearForm">
+                    <form action="{{ route('logs.laravel.clear') }}" method="POST" id="clearForm">
                         @csrf
                         <button type="submit" class="btn btn-danger">
                             <i class="bi bi-trash me-1"></i> Yes, Clear Logs
@@ -629,13 +629,13 @@
             // Download button
             if (downloadBtn) {
                 downloadBtn.addEventListener('click', function () {
-                    window.location.href = '{{ route("admin.logs.laravel.download") }}';
+                    window.location.href = '{{ route("logs.laravel.download") }}';
                 });
             }
 
             // Load stats via AJAX
             function loadStats() {
-                fetch('{{ route("admin.logs.laravel.stats") }}')
+                fetch('{{ route("logs.laravel.stats") }}')
                     .then(response => response.json())
                     .then(data => {
                         if (data.size !== undefined) {

@@ -11,26 +11,31 @@ class UserTypesTableSeeder extends Seeder
     {
         $userTypes = [
             [
-                'name' => 'Admin',
-                'code' => 'ADMIN',
-                'description' => 'System Administrator',
+                'name' => 'Super Admin',
+                'code' => 'SUPER_ADMIN',
+                'description' => 'Full system access',
             ],
             [
-                'name' => 'User',
-                'code' => 'USER',
-                'description' => 'Normal User',
+                'name' => 'Admin',
+                'code' => 'ADMIN',
+                'description' => 'Institute Administrator',
+            ],
+            [
+                'name' => 'Teacher',
+                'code' => 'TEACHER',
+                'description' => 'Teacher Mobile App User',
             ],
         ];
 
         foreach ($userTypes as $type) {
             DB::table('user_types')->updateOrInsert(
-                ['code' => $type['code']], // unique check
+                ['code' => $type['code']],
                 [
-                    'name' => $type['name'],
+                    'name'        => $type['name'],
                     'description' => $type['description'],
-                    'is_active' => true,
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'is_active'   => true,
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
                 ]
             );
         }
