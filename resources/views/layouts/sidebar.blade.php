@@ -434,11 +434,11 @@
                     </button>
                 </div>
             @endif
-            @if (hasPermission('logs.laravel.index') && auth()->check() && auth()->user()->email === 'admin@nexorait.lk')
+            @if (auth()->check() && auth()->user()->isSuperAdmin())
                 <div class="nav-item">
                     <button type="button"
                         class="nav-link-custom {{ request()->routeIs('admin.logs.laravel.*') ? 'active' : '' }}"
-                        data-route="admin.logs.laravel.index" data-href="{{ route('admin.logs.laravel.index') }}">
+                        data-route="admin.logs.laravel.index" data-href="{{ route('logs.laravel.index') }}">
 
                         <i class="bi bi-file-earmark-text"></i>
 

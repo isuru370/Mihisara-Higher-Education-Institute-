@@ -6,24 +6,13 @@
 @section('content')
 
     @php
-        $totalUsers = $systemUsers
-            ->where('email', '!=', 'admin@nexorait.lk')
-            ->count();
+        $totalUsers = $systemUsers->total();
 
-        $activeUsers = $systemUsers
-            ->where('is_active', 1)
-            ->where('email', '!=', 'admin@nexorait.lk')
-            ->count();
+        $activeUsers = $systemUsers->getCollection()->where('is_active', 1)->count();
 
-        $inactiveUsers = $systemUsers
-            ->where('is_active', 0)
-            ->where('email', '!=', 'admin@nexorait.lk')
-            ->count();
+        $inactiveUsers = $systemUsers->getCollection()->where('is_active', 0)->count();
 
-        $linkedUsers = $systemUsers
-            ->where('email', '!=', 'admin@nexorait.lk')
-            ->filter(fn($u) => !empty($u->user?->name))
-            ->count();
+        $linkedUsers = $systemUsers->getCollection()->filter(fn($u) => !empty($u->user?->name))->count();
     @endphp
 
     <div class="system-users-page">
@@ -110,7 +99,7 @@
             </div>
 
             {{-- ALERT --}}
-            @if(session('success'))
+            @if (session('success'))
                 <div class="alert alert-success custom-alert">
                     <i class="bi bi-check-circle-fill me-2"></i>
                     {{ session('success') }}
@@ -134,7 +123,8 @@
                             <select name="is_active" class="form-select custom-input">
                                 <option value="">All Status</option>
                                 <option value="1" {{ request('is_active') === '1' ? 'selected' : '' }}>Active</option>
-                                <option value="0" {{ request('is_active') === '0' ? 'selected' : '' }}>Inactive</option>
+                                <option value="0" {{ request('is_active') === '0' ? 'selected' : '' }}>Inactive
+                                </option>
                             </select>
                         </div>
 
@@ -146,7 +136,8 @@
                         </div>
 
                         <div class="col-lg-2">
-                            <a href="{{ route('admin.system-users.index') }}" class="btn btn-light border w-100 custom-btn">
+                            <a href="{{ route('admin.system-users.index') }}"
+                                class="btn btn-light border w-100 custom-btn">
                                 Reset
                             </a>
                         </div>
@@ -171,8 +162,6 @@
 
                     <tbody>
                         @forelse($systemUsers as $systemUser)
-                            @continue(strtolower($systemUser->user?->email ?? '') === 'admin@nexorait.lk')
-
                             <tr>
                                 <td>
                                     {{ $loop->iteration + ($systemUsers->currentPage() - 1) * $systemUsers->perPage() }}
@@ -206,7 +195,7 @@
                                 </td>
 
                                 <td>
-                                    @if($systemUser->user)
+                                    @if ($systemUser->user)
                                         <div class="fw-semibold">{{ $systemUser->user?->name }}</div>
                                         <small class="text-muted">{{ $systemUser->user?->email }}</small>
                                     @else
@@ -215,7 +204,7 @@
                                 </td>
 
                                 <td>
-                                    @if($systemUser->is_active)
+                                    @if ($systemUser->is_active)
                                         <span class="badge bg-success custom-badge">Active</span>
                                     @else
                                         <span class="badge bg-secondary custom-badge">Inactive</span>
@@ -234,13 +223,13 @@
                                             <i class="bi bi-pencil-fill"></i>
                                         </a>
 
-                                        <a href="{{ route('admin.user-permissions.index', $systemUser->id) }}"
+                                        {{-- <a href="{{ route('admin.user-permissions.index', $systemUser->id) }}"
                                             class="action-btn permissions-btn" title="permissions">
                                             <i class="bi bi-key-fill"></i>
-                                        </a>
+                                        </a> --}}
 
-                                        <form action="{{ route('admin.system-users.destroy', $systemUser) }}" method="POST"
-                                            onsubmit="return confirm('Delete this user?')">
+                                        <form action="{{ route('admin.system-users.destroy', $systemUser) }}"
+                                            method="POST" onsubmit="return confirm('Delete this user?')">
                                             @csrf
                                             @method('DELETE')
 

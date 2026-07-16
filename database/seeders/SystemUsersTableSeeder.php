@@ -16,6 +16,8 @@ class SystemUsersTableSeeder extends Seeder
                 'full_name' => 'System Administrator',
                 'email' => 'admin@nexorait.lk',
                 'password' => 'Admin@123',
+                'role' => 'SUPER_ADMIN',
+
                 'mobile' => '0711234567',
                 'nic' => '123456789V',
                 'bday' => '1985-01-15',
@@ -26,33 +28,35 @@ class SystemUsersTableSeeder extends Seeder
             ],
             [
                 'custom_id' => 'ADM002',
-                'full_name' => 'Mihisara Administrator',
+                'full_name' => 'Mihisara Admin',
                 'email' => 'mihisara@gmail.com',
-                'password' => 'Admin@mihisara',
+                'password' => 'Admin@minipalasa',
+                'role' => 'ADMIN',
+
                 'mobile' => '0719876543',
                 'nic' => '987654321V',
                 'bday' => '1990-05-20',
                 'gender' => 'male',
-                'address1' => 'Mirigama',
+                'address1' => 'Divulapitiya',
                 'address2' => 'Sri Lanka',
                 'address3' => 'Sri Lanka',
             ],
         ];
 
-        // 🔥 get admin user type
-        $adminTypeId = DB::table('user_types')
-            ->where('code', 'ADMIN')
-            ->value('id');
-
         foreach ($admins as $admin) {
 
-            // 🔥 users table
+            // Get role ID
+            $userTypeId = DB::table('user_types')
+                ->where('code', $admin['role'])
+                ->value('id');
+
+            // Users table
             DB::table('users')->updateOrInsert(
                 ['email' => $admin['email']],
                 [
                     'name' => $admin['full_name'],
                     'password' => Hash::make($admin['password']),
-                    'user_type_id' => $adminTypeId,
+                    'user_type_id' => $userTypeId,
                     'is_active' => true,
                     'email_verified_at' => now(),
                     'updated_at' => now(),
@@ -60,9 +64,11 @@ class SystemUsersTableSeeder extends Seeder
                 ]
             );
 
-            $user = DB::table('users')->where('email', $admin['email'])->first();
+            $user = DB::table('users')
+                ->where('email', $admin['email'])
+                ->first();
 
-            // 🔥 system_users table
+            // System Users
             DB::table('system_users')->updateOrInsert(
                 ['custom_id' => $admin['custom_id']],
                 [
@@ -81,7 +87,7 @@ class SystemUsersTableSeeder extends Seeder
                 ]
             );
 
-            $this->command->info("✅ Admin {$admin['email']} ready");
+            $this->command->info("✅ {$admin['role']} {$admin['email']} ready");
         }
     }
 }

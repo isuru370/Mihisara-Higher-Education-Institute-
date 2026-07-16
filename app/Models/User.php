@@ -37,12 +37,17 @@ class User extends Authenticatable
         }
     }
 
+    public function isSuperAdmin()
+{
+    return $this->userType && $this->userType->code === 'SUPER_ADMIN';
+}
+
     public function systemUser()
     {
         return $this->hasOne(SystemUser::class);
     }
 
-    
+
 
     public function userType()
     {

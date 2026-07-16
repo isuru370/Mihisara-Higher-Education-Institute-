@@ -50,10 +50,11 @@ Route::post(
 |--------------------------------------------------------------------------
 */
 
+
 Route::middleware([
     'auth:sanctum',
     'user.active',
-    'permission'
+    'role:ADMIN,USER'
 ])->group(function () {
 
     /*
