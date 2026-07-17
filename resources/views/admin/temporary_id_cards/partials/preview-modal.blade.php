@@ -21,7 +21,7 @@
                     <div class="tmp-card-preview">
                         <div class="id-card">
                             <div class="logo-section">
-                                <img src="{{ asset('storage/logo/black_logo.png') }}" class="logo-img" alt="Logo">
+                                <img src="{{ asset('storage/logo/logo.png') }}" class="logo-img" alt="Logo">
 
                                 <div class="institute-name">
                                     <div class="title">MINIPALASA</div>
