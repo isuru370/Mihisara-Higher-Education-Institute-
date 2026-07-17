@@ -284,7 +284,7 @@
                                     <img src="{{ asset('storage/logo/logo.png') }}" class="logo-img" alt="Logo">
 
                                     <div class="institute-name">
-                                        <div class="title">MINIPAHANA</div>
+                                        <div class="title">MIHISARA</div>
                                         <div class="sub">EDUCATION CENTRE</div>
                                         <div class="name-line"></div>
                                     </div>
