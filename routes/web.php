@@ -33,6 +33,8 @@ use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Admin\MonthlyReportController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\ReceiptController;
+use App\Http\Controllers\Admin\StudentCardController;
+use App\Http\Controllers\Admin\StudentCardRegistrationController;
 use App\Http\Controllers\Admin\StudentClassManagementController;
 use App\Http\Controllers\Admin\StudentIDCardController;
 use App\Http\Controllers\Admin\StudentImageController;
@@ -41,6 +43,7 @@ use App\Http\Controllers\Admin\TeacherReportController;
 use App\Http\Controllers\Admin\TeacherSalaryController;
 use App\Http\Controllers\Admin\TemporaryIDCardController;
 use App\Http\Controllers\Admin\TodayAttendanceController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserPermissionController;
 use App\Http\Controllers\Admin\UserProfileController;
 use Illuminate\Http\Request;
@@ -56,7 +59,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
 
     if (auth()->check()) {
-        return redirect('/dashboard');
+        return redirect('/admin/dashboard');
     }
 
     return view('welcome');
@@ -358,6 +361,21 @@ Route::middleware([
             TeacherController::class
         );
 
+        Route::get(
+            'teachers/{teacher}/login-details',
+            [TeacherController::class, 'loginDetails']
+        )->name('teachers.loginDetails');
+
+        Route::post(
+            '/teachers/{teacher}/create-login',
+            [TeacherController::class, 'createLogin']
+        )->name('teachers.create-login');
+
+        Route::post(
+            '/teachers/{teacher}/reset-password',
+            [TeacherController::class, 'resetPassword']
+        )->name('teachers.reset-password');
+
         Route::patch(
             'teachers/{teacher}/toggle-active',
             [TeacherController::class, 'toggleActive']
@@ -548,8 +566,6 @@ Route::middleware([
             'today-classes',
             [ClassScheduleController::class, 'todayClasses']
         )->name('class-schedules.todayClasses');
-
-
 
 
         /*
@@ -1225,5 +1241,121 @@ Route::middleware([
 
                 // Get category fees - GET (AJAX)
                 Route::get('/class/{classId}/category-fees', 'getCategoryFees')->name('get-category-fees');
+            });
+
+        /*
+|--------------------------------------------------------------------------
+| User Management
+|--------------------------------------------------------------------------
+*/
+
+        Route::resource('users', UserController::class);
+
+        // Toggle Active Status
+        Route::patch(
+            'users/{user}/toggle-active',
+            [UserController::class, 'toggleActive']
+        )->name('users.toggleActive');
+
+        // Change Password
+        Route::patch(
+            'users/{user}/change-password',
+            [UserController::class, 'changePassword']
+        )->name('users.changePassword');
+
+        // Restore Soft Deleted User
+        Route::post(
+            'users/{id}/restore',
+            [UserController::class, 'restore']
+        )->name('users.restore');
+
+        // Force Delete User
+        Route::delete(
+            'users/{id}/force-delete',
+            [UserController::class, 'forceDelete']
+        )->name('users.forceDelete');
+
+        // Bulk Actions
+        Route::post(
+            'users/bulk-action',
+            [UserController::class, 'bulkAction']
+        )->name('users.bulkAction');
+
+        // Export Routes
+        Route::get(
+            'users-export/excel',
+            [UserController::class, 'exportExcel']
+        )->name('users.exportExcel');
+
+        Route::get(
+            'users-export/pdf',
+            [UserController::class, 'exportPdf']
+        )->name('users.exportPdf');
+
+        // API Routes for AJAX
+        Route::get(
+            'api/user-types',
+            [UserController::class, 'getUserTypes']
+        )->name('api.user-types');
+
+        Route::get(
+            'api/users/stats',
+            [UserController::class, 'getStats']
+        )->name('api.users.stats');
+
+        Route::prefix('student-cards')->name('student-cards.')->group(function () {
+
+            Route::get('/', [StudentCardController::class, 'index'])->name('index');
+
+            Route::get('/available', [StudentCardController::class, 'available'])->name('available');
+
+            Route::get('/search', [StudentCardController::class, 'search'])->name('search');
+
+            Route::get('/students/check-current-card', [StudentCardController::class, 'checkCurrentCard'])
+                ->name('students.check-current-card');
+
+            Route::get('/generate', [StudentCardController::class, 'generate'])->name('generate');
+            Route::post('/generate', [StudentCardController::class, 'generateCards'])->name('generate.store');
+
+            Route::get('/assign-form', [StudentCardController::class, 'assignForm'])->name('assign.form');
+            Route::post('/assign', [StudentCardController::class, 'assign'])->name('assign');
+
+            Route::get('/history/{student}', [StudentCardController::class, 'history'])->name('history');
+
+            // ✅ Preview Route
+            Route::get('/preview', [StudentCardController::class, 'preview'])
+                ->name('preview');
+
+            Route::get('/{card}', [StudentCardController::class, 'show'])->name('show');
+
+            Route::get('/{card}/replace', [StudentCardController::class, 'replaceForm'])->name('replace.form');
+            Route::post('/{card}/replace', [StudentCardController::class, 'replace'])->name('replace');
+
+            Route::patch('/{card}/lost', [StudentCardController::class, 'markLost'])->name('lost');
+            Route::patch('/{card}/damaged', [StudentCardController::class, 'markDamaged'])->name('damaged');
+            Route::patch('/{card}/deactivate', [StudentCardController::class, 'deactivate'])->name('deactivate');
+        });
+
+        /*
+|--------------------------------------------------------------------------
+| Student Card Registration
+|--------------------------------------------------------------------------
+*/
+
+        Route::prefix('student-card-registration')
+            ->name('student-card-registration.')
+            ->group(function () {
+
+                // Registration Form
+                Route::get(
+                    '/',
+                    [StudentCardRegistrationController::class, 'create']
+                )->name('create');
+
+                // Register Student
+                Route::post(
+                    '/',
+                    [StudentCardRegistrationController::class, 'store']
+                )->name('store');
             });
     });

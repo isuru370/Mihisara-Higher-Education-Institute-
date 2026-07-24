@@ -14,6 +14,7 @@ use App\Http\Controllers\API\QuickPhotoController;
 use App\Http\Controllers\API\StudentAttendanceController;
 use App\Http\Controllers\API\StudentAttendanceReadController;
 use App\Http\Controllers\API\StudentAttendanceScanController;
+use App\Http\Controllers\API\StudentCardRegisterController;
 use App\Http\Controllers\API\StudentClassController;
 use App\Http\Controllers\API\StudentClassEnrollmentController;
 use App\Http\Controllers\API\StudentController;
@@ -68,6 +69,16 @@ Route::middleware([
         [LoginController::class, 'logout']
     )->name('api.logout');
 
+    Route::post(
+        '/qr-code',
+        [StudentCardRegisterController::class, 'searchQrcode']
+    )->name('api.card.searchQrcode');
+
+    Route::post('/re-assign', [
+        StudentCardRegisterController::class,
+        'reAssign'
+    ])->name('api.card.reassign');
+
 
     /*
     |--------------------------------------------------------------------------
@@ -80,6 +91,11 @@ Route::middleware([
         '/student',
         [StudentRegisterController::class, 'QuickStudentStore']
     )->name('api.QuickStudentStore');
+
+    Route::post(
+        '/student-new',
+        [StudentCardRegisterController::class, 'store']
+    )->name('api.student.store');
 
     Route::get(
         '/students',

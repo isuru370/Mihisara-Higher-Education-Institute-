@@ -268,7 +268,6 @@
                     <tbody>
 
                         @forelse($teachers as $teacher)
-
                             <tr>
 
                                 <td>
@@ -367,22 +366,18 @@
 
                                 <td>
 
-                                    @if($teacher->is_active)
-
+                                    @if ($teacher->is_active)
                                         <span class="badge bg-success custom-badge">
 
                                             Active
 
                                         </span>
-
                                     @else
-
                                         <span class="badge bg-secondary custom-badge">
 
                                             Inactive
 
                                         </span>
-
                                     @endif
 
                                 </td>
@@ -396,17 +391,20 @@
                                         <!-- VIEW -->
 
                                         <a href="{{ route('admin.teachers.show', $teacher) }}" class="action-btn view-btn">
-
                                             <i class="bi bi-eye-fill"></i>
-
                                         </a>
 
                                         <!-- EDIT -->
 
                                         <a href="{{ route('admin.teachers.edit', $teacher) }}" class="action-btn edit-btn">
-
                                             <i class="bi bi-pencil-fill"></i>
+                                        </a>
 
+                                        <!-- LOGIN DETAILS -->
+
+                                        <a href="{{ route('admin.teachers.loginDetails', $teacher) }}"
+                                            class="action-btn login-btn" title="Login Details">
+                                            <i class="bi bi-key-fill"></i>
                                         </a>
 
                                         <!-- TOGGLE -->
@@ -418,9 +416,7 @@
                                             @method('PATCH')
 
                                             <button type="submit" class="action-btn toggle-btn">
-
                                                 <i class="bi bi-arrow-repeat"></i>
-
                                             </button>
 
                                         </form>
@@ -443,9 +439,7 @@
                                             @method('DELETE')
 
                                             <button type="submit" class="action-btn delete-btn">
-
                                                 <i class="bi bi-trash-fill"></i>
-
                                             </button>
 
                                         </form>
@@ -479,7 +473,6 @@
                                 </td>
 
                             </tr>
-
                         @endforelse
 
                     </tbody>
@@ -503,7 +496,6 @@
 @endsection
 
 @push('styles')
-
     <style>
         .teachers-page {
             animation: fadeIn 0.4s ease;
@@ -792,6 +784,16 @@
             color: #2563eb;
         }
 
+        .login-btn {
+            background-color: #0d6efd;
+            color: #fff;
+        }
+
+        .login-btn:hover {
+            background-color: #0b5ed7;
+            color: #fff;
+        }
+
         .edit-btn {
 
             background: #fef3c7;
@@ -854,5 +856,4 @@
             }
         }
     </style>
-
 @endpush

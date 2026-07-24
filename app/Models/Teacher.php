@@ -11,6 +11,7 @@ class Teacher extends Model
 
     protected $fillable = [
         'custom_id',
+        'user_id',
         'full_name',
         'initials',
         'email',
@@ -33,6 +34,11 @@ class Teacher extends Model
         'is_active' => 'boolean',
     ];
 
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function bankBranch()
     {
         return $this->belongsTo(BankBranch::class);
@@ -50,6 +56,4 @@ class Teacher extends Model
             StudentClass::class
         );
     }
-
-    
 }

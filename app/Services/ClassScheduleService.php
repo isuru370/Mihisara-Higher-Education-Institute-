@@ -141,7 +141,15 @@ class ClassScheduleService
 
     public function generateRecurringSchedules(ClassSchedulePattern $pattern)
     {
+        $today = Carbon::today();
+
         $start = Carbon::parse($pattern->start_date);
+
+        // Start from today if pattern started in the past
+        if ($start->lt($today)) {
+            $start = $today->copy();
+        }
+
         $end = Carbon::parse($pattern->end_date);
 
         $date = $start->copy();

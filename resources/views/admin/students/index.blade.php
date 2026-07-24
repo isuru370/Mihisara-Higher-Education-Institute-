@@ -131,6 +131,14 @@
 
                     </a>
 
+                    <a href="{{ route('admin.student-card-registration.create') }}" class="btn btn-primary custom-btn">
+
+                        <i class="bi bi-person-plus-fill me-1"></i>
+
+                        New Registration
+
+                    </a>
+
                     <a href="{{ route('admin.students.exportExcel') }}" class="btn btn-success custom-btn">
 
                         <i class="bi bi-file-earmark-excel-fill"></i>
@@ -196,14 +204,13 @@
                                     All Grades
                                 </option>
 
-                                @foreach(\App\Models\Grade::orderBy('grade_name')->get() as $grade)
-
-                                    <option value="{{ $grade->id }}" {{ request('grade_id') == $grade->id ? 'selected' : '' }}>
+                                @foreach (\App\Models\Grade::orderBy('grade_name')->get() as $grade)
+                                    <option value="{{ $grade->id }}"
+                                        {{ request('grade_id') == $grade->id ? 'selected' : '' }}>
 
                                         {{ $grade->grade_name }}
 
                                     </option>
-
                                 @endforeach
 
                             </select>
@@ -274,16 +281,11 @@
 
                             @php
 
-                                $expireDate =
-                                    $student->temporary_qr_code_expire_date;
+                                $expireDate = $student->temporary_qr_code_expire_date;
 
-                                $daysLeft =
-                                    $expireDate
-                                    ? now()->diffInDays($expireDate, false)
-                                    : null;
+                                $daysLeft = $expireDate ? now()->diffInDays($expireDate, false) : null;
 
-                                $studentImage =
-                                    $student->img_url
+                                $studentImage = $student->img_url
                                     ? asset('storage/' . $student->img_url)
                                     : asset('images/default-student.png');
 
@@ -355,8 +357,7 @@
 
                                 <td>
 
-                                    @if($student->permanent_qr_active == 1)
-
+                                    @if ($student->permanent_qr_active == 1)
                                         <span class="badge bg-success custom-badge mb-2">
                                             Permanent QR
                                         </span>
@@ -364,9 +365,7 @@
                                         <div class="fw-bold">
                                             {{ $student->custom_id }}
                                         </div>
-
                                     @else
-
                                         <span class="badge bg-warning text-dark custom-badge mb-2">
                                             Temporary QR
                                         </span>
@@ -375,26 +374,19 @@
                                             {{ $student->temporary_qr_code }}
                                         </div>
 
-                                        @if($daysLeft < 0)
-
+                                        @if ($daysLeft < 0)
                                             <small class="text-danger fw-semibold">
                                                 Expired
                                             </small>
-
                                         @elseif($daysLeft == 0)
-
                                             <small class="text-warning fw-semibold">
                                                 Expires Today
                                             </small>
-
                                         @else
-
                                             <small class="text-muted">
                                                 {{ $daysLeft }} days left
                                             </small>
-
                                         @endif
-
                                     @endif
 
                                 </td>
@@ -403,34 +395,26 @@
 
                                 <td>
 
-                                    @if($student->student_disable)
-
+                                    @if ($student->student_disable)
                                         <span class="badge bg-danger custom-badge">
                                             Disabled
                                         </span>
-
                                     @elseif($student->is_active)
-
                                         <span class="badge bg-success custom-badge">
                                             Active
                                         </span>
-
                                     @else
-
                                         <span class="badge bg-secondary custom-badge">
                                             Inactive
                                         </span>
-
                                     @endif
 
                                     <br>
 
-                                    @if($student->admission)
-
+                                    @if ($student->admission)
                                         <span class="badge bg-primary custom-badge mt-2">
                                             Admission Paid
                                         </span>
-
                                     @endif
 
                                 </td>
@@ -521,7 +505,6 @@
 @endsection
 
 @push('styles')
-
     <style>
         /* PAGE */
 
@@ -843,5 +826,4 @@
             }
         }
     </style>
-
 @endpush
