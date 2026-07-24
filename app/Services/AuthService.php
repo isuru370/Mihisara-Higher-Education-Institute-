@@ -2,56 +2,49 @@
 
 namespace App\Services;
 
-use Illuminate\Http\Request;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 
 class AuthService
 {
     /**
-     * Handle Login
+     * Login User
      */
-    public function login(Request $request): array
+    public function login(array $credentials): array
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string',
-        ]);
-
-        $credentials = $request->only('email', 'password');
-
-        // login attempt
-        if (!Auth::attempt($credentials, $request->remember)) {
-
+        if (!Auth::attempt($credentials)) {
             return [
                 'success' => false,
-                'message' => 'Invalid credentials'
+                'message' => 'Invalid email or password',
             ];
         }
 
         $user = Auth::user();
 
-        // inactive user block
         if (!$user->is_active) {
-
             Auth::logout();
 
             return [
                 'success' => false,
-                'message' => 'Your account is inactive'
+                'message' => 'Your account is inactive',
             ];
         }
 
         return [
             'success' => true,
-            'user' => $user
+            'user' => $user,
         ];
     }
 
     /**
-     * Logout
+     * Logout User
      */
-    public function logout(): void
+    public function logout(?User $user): void
     {
-        Auth::logout();
+        if (!$user) {
+            return;
+        }
+
+        $user->tokens()->delete();
     }
 }

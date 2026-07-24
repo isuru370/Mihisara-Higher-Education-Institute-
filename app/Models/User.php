@@ -38,9 +38,9 @@ class User extends Authenticatable
     }
 
     public function isSuperAdmin()
-{
-    return $this->userType && $this->userType->code === 'SUPER_ADMIN';
-}
+    {
+        return $this->userType && $this->userType->code === 'SUPER_ADMIN';
+    }
 
     public function systemUser()
     {
@@ -57,5 +57,10 @@ class User extends Authenticatable
     public function payments()
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function teacher()
+    {
+        return $this->hasOne(Teacher::class);
     }
 }

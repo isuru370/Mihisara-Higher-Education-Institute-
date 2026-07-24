@@ -10,30 +10,30 @@ class LoginController extends Controller
 {
     protected AuthService $authService;
 
-    /**
-     * Constructor
-     */
     public function __construct(AuthService $authService)
     {
         $this->authService = $authService;
     }
 
     /**
-     * API Login
+     * Login
      */
     public function login(Request $request)
     {
-        $result = $this->authService->login($request);
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string',
+        ]);
+
+        $result = $this->authService->login($validated);
 
         if (!$result['success']) {
-
             return response()->json([
                 'status' => 'error',
-                'message' => $result['message']
+                'message' => $result['message'],
             ], 401);
         }
 
-        // create token
         $token = $result['user']
             ->createToken('mobile-token')
             ->plainTextToken;
@@ -42,8 +42,8 @@ class LoginController extends Controller
             'status' => 'success',
             'message' => 'Login successful',
             'token' => $token,
-            'user' => $result['user']
-        ],200);
+            'user' => $result['user'],
+        ], 200);
     }
 
     /**
@@ -51,11 +51,11 @@ class LoginController extends Controller
      */
     public function logout(Request $request)
     {
-        $request->user()?->currentAccessToken()?->delete();
+        $this->authService->logout($request->user());
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Logout successful'
-        ],200);
+            'message' => 'Logout successful',
+        ], 200);
     }
 }

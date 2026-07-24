@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Student extends Model
@@ -122,5 +123,36 @@ class Student extends Model
     public function mobileDevices()
     {
         return $this->hasMany(MobileDevice::class);
+    }
+
+    /**
+     * Get all cards issued to the student.
+     */
+    public function studentCards(): HasMany
+    {
+        return $this->hasMany(StudentCard::class);
+    }
+
+    /**
+     * Get the student's current active enrollment.
+     */
+    public function currentEnrollment(): HasOne
+    {
+        return $this->hasOne(StudentClassEnrollment::class)
+            ->where('is_active', true);
+    }
+
+    /**
+     * Get the student's current active card.
+     */
+    public function currentCard(): HasOne
+    {
+        return $this->hasOne(StudentCard::class)
+            ->where('is_current', true);
+    }
+
+    public function cardHistories()
+    {
+        return $this->hasMany(StudentCardHistory::class);
     }
 }

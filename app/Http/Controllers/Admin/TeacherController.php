@@ -16,9 +16,17 @@ use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\ClassPaymentConfig;
 use App\Models\StudentClass;
+use App\Services\TeacherService;
 
 class TeacherController extends Controller
 {
+    protected TeacherService $teacherService;
+
+    public function __construct(TeacherService $teacherService)
+    {
+        $this->teacherService = $teacherService;
+    }
+
     public function index(Request $request)
     {
         $query = Teacher::with('bankBranch.bank')->latest();
@@ -108,77 +116,77 @@ class TeacherController extends Controller
     }
 
     public function toggleActive(Teacher $teacher)
-{
-    try {
-        DB::transaction(function () use ($teacher) {
-            $newStatus = !$teacher->is_active;
+    {
+        try {
+            DB::transaction(function () use ($teacher) {
+                $newStatus = !$teacher->is_active;
 
-            $teacher->update([
-                'is_active' => $newStatus,
+                $teacher->update([
+                    'is_active' => $newStatus,
+                ]);
+
+                StudentClass::where('teacher_id', $teacher->id)
+                    ->update([
+                        'is_active' => $newStatus,
+                    ]);
+
+                ClassPaymentConfig::where('teacher_id', $teacher->id)
+                    ->update([
+                        'is_active' => $newStatus,
+                    ]);
+            });
+
+            return back()->with(
+                'success',
+                $teacher->is_active
+                    ? 'Teacher activated successfully.'
+                    : 'Teacher deactivated successfully.'
+            );
+        } catch (Exception $e) {
+            Log::error('Teacher active toggle failed', [
+                'teacher_id' => $teacher->id,
+                'error' => $e->getMessage(),
             ]);
 
-            StudentClass::where('teacher_id', $teacher->id)
-                ->update([
-                    'is_active' => $newStatus,
-                ]);
-
-            ClassPaymentConfig::where('teacher_id', $teacher->id)
-                ->update([
-                    'is_active' => $newStatus,
-                ]);
-        });
-
-        return back()->with(
-            'success',
-            $teacher->is_active
-                ? 'Teacher activated successfully.'
-                : 'Teacher deactivated successfully.'
-        );
-    } catch (Exception $e) {
-        Log::error('Teacher active toggle failed', [
-            'teacher_id' => $teacher->id,
-            'error' => $e->getMessage(),
-        ]);
-
-        return back()->with('error', 'Teacher status update failed.');
+            return back()->with('error', 'Teacher status update failed.');
+        }
     }
-}
 
 
 
     public function destroy(Teacher $teacher)
-{
-    try {
-        DB::transaction(function () use ($teacher) {
-            StudentClass::where('teacher_id', $teacher->id)
-                ->update([
-                    'is_active' => false,
-                ]);
+    {
+        try {
+            DB::transaction(function () use ($teacher) {
+                StudentClass::where('teacher_id', $teacher->id)
+                    ->update([
+                        'is_active' => false,
+                    ]);
 
-            ClassPaymentConfig::where('teacher_id', $teacher->id)
-                ->update([
-                    'is_active' => false,
-                ]);
+                ClassPaymentConfig::where('teacher_id', $teacher->id)
+                    ->update([
+                        'is_active' => false,
+                    ]);
 
-            StudentClass::where('teacher_id', $teacher->id)->delete();
+                StudentClass::where('teacher_id', $teacher->id)->delete();
 
-            ClassPaymentConfig::where('teacher_id', $teacher->id)->delete();
+                ClassPaymentConfig::where('teacher_id', $teacher->id)->delete();
 
-            $teacher->delete();
-        });
+                $teacher->delete();
+            });
 
-        return redirect()
-            ->route('admin.teachers.index')
-            ->with('success', 'Teacher deleted successfully.');
-    } catch (Exception $e) {
-        Log::error('Teacher delete failed', [
-            'teacher_id' => $teacher->id,
-            'error' => $e->getMessage(),
-        ]);
+            return redirect()
+                ->route('admin.teachers.index')
+                ->with('success', 'Teacher deleted successfully.');
+        } catch (Exception $e) {
+            Log::error('Teacher delete failed', [
+                'teacher_id' => $teacher->id,
+                'error' => $e->getMessage(),
+            ]);
 
-        return back()->with('error', 'Teacher delete failed.');
+            return back()->with('error', 'Teacher delete failed.');
+        }
     }
-}
 
     private function generateCustomId()
     {
@@ -210,5 +218,84 @@ class TeacherController extends Controller
             ->setPaper('a4', 'landscape');
 
         return $pdf->download('teachers.pdf');
+    }
+
+    public function loginDetails(Teacher $teacher)
+    {
+        try {
+
+            $teacher->load('user');
+
+            return view(
+                'admin.teachers.login-details',
+                compact('teacher')
+            );
+        } catch (Exception $e) {
+
+            Log::error('Teacher Login Details Page Error', [
+                'teacher_id' => $teacher->id ?? null,
+                'user_id'    => auth()->id(),
+                'message'    => $e->getMessage(),
+                'file'       => $e->getFile(),
+                'line'       => $e->getLine(),
+            ]);
+
+            return redirect()
+                ->route('admin.teachers.index')
+                ->with('error', 'Unable to load teacher login details. Please try again.');
+        }
+    }
+
+    public function createLogin(Request $request, Teacher $teacher)
+    {
+        $request->validate([
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        try {
+
+            if ($teacher->user_id) {
+                return back()->with('error', 'Login account already exists.');
+            }
+
+            $this->teacherService->createLogin($teacher, $request->password);
+
+            return back()->with('success', 'Login account created successfully.');
+        } catch (\Throwable $e) {
+
+            Log::error('Teacher login creation failed', [
+                'teacher_id' => $teacher->id,
+                'user_id' => auth()->id(),
+                'message' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Failed to create login account.');
+        }
+    }
+
+    public function resetPassword(Request $request, Teacher $teacher)
+    {
+        $request->validate([
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        try {
+
+            $this->teacherService->resetPassword(
+                $teacher,
+                $request->password
+            );
+
+            return back()->with('success', 'Password reset successfully.');
+        } catch (\Throwable $e) {
+
+            Log::error('Teacher password reset failed', [
+                'teacher_id' => $teacher->id,
+                'user_id' => auth()->id(),
+                'message' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Failed to reset password.');
+        }
     }
 }

@@ -90,6 +90,17 @@
                 </div>
             @endif
 
+            @if (hasPermission('users.index'))
+                <div class="nav-item">
+                    <button type="button"
+                        class="nav-link-custom {{ request()->routeIs('admin.users.*') ? 'active' : '' }}"
+                        data-route="admin.users.index" data-href="{{ route('admin.users.index') }}">
+                        <i class="bi bi-person-circle"></i>
+                        <span>Users</span>
+                    </button>
+                </div>
+            @endif
+
             @if (hasPermission('students.index'))
                 <div class="nav-item">
                     <button type="button"
@@ -157,6 +168,19 @@
                         data-href="{{ route('admin.student-id-cards.index') }}">
                         <i class="bi bi-card-heading"></i>
                         <span>Student ID Cards</span>
+                    </button>
+                </div>
+            @endif
+            @if (hasPermission('student-cards.index'))
+                <div class="nav-item">
+                    <button type="button"
+                        class="nav-link-custom {{ request()->routeIs('admin.student-cards.*') ? 'active' : '' }}"
+                        data-route="admin.student-cards.index" data-href="{{ route('admin.student-cards.index') }}">
+
+                        <i class="bi bi-person-vcard-fill"></i>
+
+                        <span>Student Cards</span>
+
                     </button>
                 </div>
             @endif

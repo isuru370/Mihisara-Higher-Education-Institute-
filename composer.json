@@ -20,7 +20,7 @@
         "laravel/sanctum": "^2.15",
         "laravel/tinker": "^2.5",
         "maatwebsite/excel": "3.1.31",
-        "simplesoftwareio/simple-qrcode": "^4.2",
+        "simplesoftwareio/simple-qrcode": "*",
         "spatie/browsershot": "^3.61",
         "spatie/laravel-backup": "^6.16"
     },

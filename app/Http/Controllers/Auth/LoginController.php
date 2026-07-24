@@ -31,7 +31,13 @@ class LoginController extends Controller
      */
     public function login(Request $request)
     {
-        $result = $this->authService->login($request);
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string',
+        ]);
+
+        $result = $this->authService->login($validated);
+
 
         if (!$result['success']) {
 
@@ -46,9 +52,12 @@ class LoginController extends Controller
     /**
      * Logout
      */
-    public function logout()
+    public function logout(Request $request)
     {
-        $this->authService->logout();
+        $this->authService->logout($request->user());
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return redirect()->route('login');
     }

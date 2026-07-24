@@ -272,7 +272,7 @@
                                             @endif
 
                                             <div class="institute-name">
-                                                <div class="title">MINIPALASA</div>
+                                                <div class="title">MIHISARA</div>
                                                 <div class="sub">EDUCATION CENTRE</div>
                                                 <div class="name-line"></div>
                                             </div>

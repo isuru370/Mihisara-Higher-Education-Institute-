@@ -262,7 +262,7 @@ class StudentService
     /**
      * Handle quick photo assignment
      */
-    public function assignQuickPhoto(string $quickImageId, Student $student): ?string
+    public function assignQuickPhoto(string $quickImageId): ?string
     {
         $quickPhoto = QuickPhoto::where('custom_id', $quickImageId)
             ->where('is_active', true)
@@ -346,7 +346,7 @@ class StudentService
     public function handleStudentImage($file, ?string $gender = null): string
     {
         if ($file) {
-            return $file->store('uploads/students/original', 'public');
+            return $file->store('uploads/', 'public');
         }
 
         return $gender ? $this->getDefaultImageUrl($gender) : 'uploads/male.png';
