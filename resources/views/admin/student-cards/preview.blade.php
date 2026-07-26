@@ -401,8 +401,8 @@ h4 i {
 
     position:absolute;
 
-    top:15%;
-    right:1%;
+    top:12%;
+    right:0.6%;
 
     width:30%;
     height:48%;
@@ -419,8 +419,8 @@ h4 i {
 
 .qr-image svg{
 
-    width:80%;
-    height:80%;
+    width:78%;
+    height:78%;
 
 }
 
@@ -432,7 +432,7 @@ h4 i {
 
     position:absolute;
 
-    top:60.5%;
+    top:57%;
     right:4.4%;
 
     width:24%;

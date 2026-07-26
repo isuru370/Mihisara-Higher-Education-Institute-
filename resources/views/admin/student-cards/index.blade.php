@@ -80,10 +80,10 @@
                         </a>
                     @endif
 
-                    <a href="{{ route('admin.student-cards.assign.form') }}" class="btn btn-success custom-btn">
+                    {{-- <a href="{{ route('admin.student-cards.assign.form') }}" class="btn btn-success custom-btn">
                         <i class="bi bi-person-plus"></i>
                         Assign Card
-                    </a>
+                    </a> --}}
 
                     <a href="{{ route('admin.student-cards.preview') }}" class="btn btn-success custom-btn">
                         <i class="bi bi-person-plus"></i>
