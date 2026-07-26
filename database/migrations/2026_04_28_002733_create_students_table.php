@@ -30,7 +30,7 @@ return new class extends Migration
                 'male',
                 'female',
                 'other'
-            ])->default('other');
+            ])->default('male');
 
             $table->string('address1', 150)->nullable();
             $table->string('address2', 150)->nullable();
