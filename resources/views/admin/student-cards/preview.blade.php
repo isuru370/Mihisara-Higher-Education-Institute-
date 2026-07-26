@@ -154,16 +154,16 @@
 @push('styles')
     <style>
         /* ==========================================
-           PAGE
-        ========================================== */
+                                   PAGE
+                                ========================================== */
 
         body {
             background: #f0f2f5;
         }
 
         /* ==========================================
-           HEADER
-        ========================================== */
+                                   HEADER
+                                ========================================== */
 
         h4 i {
             font-size: 1.5rem;
@@ -193,8 +193,8 @@
         }
 
         /* ==========================================
-           SELECTED COUNT ALERT
-        ========================================== */
+                                   SELECTED COUNT ALERT
+                                ========================================== */
 
         .alert-info {
             background: linear-gradient(135deg, #eff6ff, #dbeafe);
@@ -209,8 +209,8 @@
         }
 
         /* ==========================================
-           TOOLBAR
-        ========================================== */
+                                   TOOLBAR
+                                ========================================== */
 
         .card-toolbar {
 
@@ -227,8 +227,8 @@
         }
 
         /* ==========================================
-           CARD WRAPPER
-        ========================================== */
+                                   CARD WRAPPER
+                                ========================================== */
 
         .card-wrapper {
 
@@ -249,8 +249,8 @@
         }
 
         /* ==========================================
-           SELECTED CARD
-        ========================================== */
+                                   SELECTED CARD
+                                ========================================== */
 
         .student-card {
 
@@ -271,8 +271,8 @@
         }
 
         /* ==========================================
-           CHECKBOX
-        ========================================== */
+                                   CHECKBOX
+                                ========================================== */
 
         .student-select {
 
@@ -297,8 +297,8 @@
         }
 
         /* ==========================================
-           DOWNLOAD BUTTON
-        ========================================== */
+                                   DOWNLOAD BUTTON
+                                ========================================== */
 
         .download-single-btn {
 
@@ -323,28 +323,19 @@
         }
 
         /* ==========================================
-           CR80 CARD
-        ========================================== */
+                                   CR80 CARD
+                                ========================================== */
 
         .id-card {
-
             position: relative;
-
             width: 3.375in;
             height: 2.125in;
-
             overflow: hidden;
-
             background: #fff;
 
+            /* comment කරන්න */
             border-radius: 10px;
-
             box-shadow: 0 4px 20px rgba(0, 0, 0, .15);
-
-            flex-shrink: 0;
-
-            transition: all 0.3s ease;
-
         }
 
         .id-card:hover {
@@ -352,8 +343,8 @@
         }
 
         /* ==========================================
-           BACKGROUND
-        ========================================== */
+                                   BACKGROUND
+                                ========================================== */
 
         .card-bg {
 
@@ -368,8 +359,8 @@
         }
 
         /* ==========================================
-           QR IMAGE
-        ========================================== */
+                                   QR IMAGE
+                                ========================================== */
 
         .qr-image {
 
@@ -399,8 +390,8 @@
         }
 
         /* ==========================================
-           QR TEXT
-        ========================================== */
+                                   QR TEXT
+                                ========================================== */
 
         .qr-text {
 
@@ -435,8 +426,8 @@
         }
 
         /* ==========================================
-           PAGINATION
-        ========================================== */
+                                   PAGINATION
+                                ========================================== */
 
         .pagination {
 
@@ -465,8 +456,8 @@
         }
 
         /* ==========================================
-           PRINT
-        ========================================== */
+                                   PRINT
+                                ========================================== */
 
         @media print {
 
@@ -528,8 +519,8 @@
         }
 
         /* ==========================================
-           RESPONSIVE
-        ========================================== */
+                                   RESPONSIVE
+                                ========================================== */
 
         @media (max-width: 768px) {
 
@@ -723,6 +714,7 @@
                 document.querySelectorAll('.download-single-btn').forEach(function(btn) {
 
                     btn.addEventListener('click', function(e) {
+
                         e.preventDefault();
                         e.stopPropagation();
 
@@ -730,7 +722,12 @@
                         this.innerHTML = '<i class="bi bi-hourglass-split"></i> Downloading...';
                         this.disabled = true;
 
-                        const card = this.closest('.card-item').querySelector('.id-card');
+                        const cardItem = this.closest('.card-item');
+                        const card = cardItem.querySelector('.id-card');
+                        const qr = cardItem.dataset.qr;
+
+                        // Remove blue border before screenshot
+                        cardItem.classList.remove('selected');
 
                         html2canvas(card, {
                             scale: 3,
@@ -741,18 +738,27 @@
                             width: card.scrollWidth,
                             height: card.scrollHeight
                         }).then(function(canvas) {
+
+                            // Restore border
+                            cardItem.classList.add('selected');
+
                             const link = document.createElement('a');
-                            link.download = 'ID_CARD.png';
+                            link.download = `ID_CARD_${qr}.png`;
                             link.href = canvas.toDataURL('image/png');
                             link.click();
 
                             btn.innerHTML = '<i class="bi bi-download"></i> Download';
                             btn.disabled = false;
+
                         }).catch(function(error) {
-                            console.error('Download error:', error);
-                            alert('Error downloading card. Please try again.');
+
+                            cardItem.classList.add('selected');
+
+                            console.error(error);
+
                             btn.innerHTML = '<i class="bi bi-download"></i> Download';
                             btn.disabled = false;
+
                         });
 
                     });
@@ -785,9 +791,10 @@
 
                         const cardItem = cb.closest('.card-item');
                         const card = cardItem.querySelector('.id-card');
-
-                        // QR Code එක ගන්න
                         const qr = cardItem.dataset.qr;
+
+                        // Remove blue border
+                        cardItem.classList.remove('selected');
 
                         const promise = html2canvas(card, {
                             scale: 3,
@@ -799,12 +806,19 @@
                             height: card.scrollHeight
                         }).then(function(canvas) {
 
+                            // Restore border
+                            cardItem.classList.add('selected');
+
                             const img = canvas.toDataURL('image/png').split(',')[1];
 
-                            // File name = ID_CARD_QRCODE.png
                             zip.file(`ID_CARD_${qr}.png`, img, {
                                 base64: true
                             });
+
+                        }).catch(function(error) {
+
+                            cardItem.classList.add('selected');
+                            console.error(error);
 
                         });
 
@@ -824,9 +838,11 @@
                         URL.revokeObjectURL(link.href);
 
                         selected.clear();
-                        document.querySelectorAll('.student-select').forEach(function(cb) {
+                        document.querySelectorAll('.student-select').forEach(function(
+                            cb) {
                             cb.checked = false;
-                            cb.closest('.student-card').classList.remove('selected');
+                            cb.closest('.student-card').classList.remove(
+                                'selected');
                         });
                         updateCounter();
 
