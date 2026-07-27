@@ -104,18 +104,9 @@ class AttendanceScanService
 
             if ($todaySchedules->isEmpty()) {
 
-                return $this->success(
-
+                return $this->error(
                     'Student found. No classes are scheduled for today.',
-
-                    [
-
-                        'student' => $student,
-
-                        'today_schedule' => null,
-
-                    ]
-
+                    404
                 );
             }
 
