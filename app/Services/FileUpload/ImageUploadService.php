@@ -19,7 +19,21 @@ class ImageUploadService
 
     public function delete(?string $path): void
     {
-        if ($path && Storage::disk('public')->exists($path)) {
+        if (!$path) {
+            return;
+        }
+
+        $defaultImages = [
+            'uploads/male.png',
+            'uploads/female.png',
+            'uploads/other.png',
+        ];
+
+        if (in_array($path, $defaultImages, true)) {
+            return;
+        }
+
+        if (Storage::disk('public')->exists($path)) {
             Storage::disk('public')->delete($path);
         }
     }
