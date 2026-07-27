@@ -123,6 +123,11 @@ Route::middleware([
         [QuickPhotoController::class, 'uploadQuickPhoto']
     )->name('api.quick-photo.upload');
 
+    Route::post(
+        '/quick-photo/update',
+        [QuickPhotoController::class, 'imageUpdate']
+    )->name('api.quick-photo.imageUpdate');
+    
     Route::get(
         '/students-image/fetch-image',
         [StudentImageController::class, 'fetchStudentImage']

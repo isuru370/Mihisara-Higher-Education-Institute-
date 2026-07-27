@@ -4,6 +4,8 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\QuickPhoto;
+use App\Models\Student;
+use App\Services\FileUpload\ImageUploadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -81,6 +83,73 @@ class QuickPhotoController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Image upload failed',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function imageUpdate(
+        Request $request,
+        ImageUploadService $imageUploadService
+    ): JsonResponse {
+        $request->validate([
+            'image' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'student_code' => 'required|string',
+        ]);
+
+        DB::beginTransaction();
+
+        $imagePath = null;
+
+        try {
+
+            $student = Student::where('custom_id', $request->student_code)
+                ->orWhere('temporary_qr_code', $request->student_code)
+                ->first();
+
+            if (!$student) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Student not found.',
+                ], 404);
+            }
+
+            // Keep old image path
+            $oldImage = $student->img_url;
+
+            // Upload new image
+            $imagePath = $imageUploadService->upload(
+                $request->file('image'),
+                'students'
+            );
+
+            // Update database
+            $student->update([
+                'img_url' => $imagePath,
+                'last_image_update_at' => now(),
+            ]);
+
+            DB::commit();
+
+            // Delete old image after successful DB update
+            $imageUploadService->delete($oldImage);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Student image updated successfully.',
+            ], 200);
+        } catch (Throwable $e) {
+
+            DB::rollBack();
+
+            // Delete newly uploaded image if DB update failed
+            if ($imagePath) {
+                $imageUploadService->delete($imagePath);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Image update failed.',
                 'error' => $e->getMessage(),
             ], 500);
         }
