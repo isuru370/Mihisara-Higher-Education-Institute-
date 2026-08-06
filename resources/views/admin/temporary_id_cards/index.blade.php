@@ -214,9 +214,13 @@
                 </div>
 
                 <div class="hero-actions">
-                    @if($showTempIdActions)
+                    @if ($showTempIdActions)
                         <a href="{{ route('admin.temporary-id-cards.create') }}" class="btn btn-primary custom-btn">
                             + Generate New
+                        </a>
+
+                        <a href="{{ route('admin.temporary-id-cards.pdf') }}" class="btn btn-danger">
+                            Download PDF
                         </a>
 
                         <a href="{{ route('admin.temporary-id-cards.preview') }}" class="btn btn-success custom-btn">
@@ -235,13 +239,13 @@
             </div>
         </div>
 
-        @if(session('success'))
+        @if (session('success'))
             <div class="alert alert-success border-0 shadow-sm rounded-4">
                 {{ session('success') }}
             </div>
         @endif
 
-        @if(session('error'))
+        @if (session('error'))
             <div class="alert alert-danger border-0 shadow-sm rounded-4">
                 {{ session('error') }}
             </div>
@@ -298,8 +302,8 @@
                     <div class="row g-3 align-items-end">
                         <div class="col-md-5">
                             <label class="form-label fw-semibold">Search</label>
-                            <input type="text" name="search" value="{{ $search ?? '' }}" class="form-control custom-input"
-                                placeholder="Search TMP number or card number">
+                            <input type="text" name="search" value="{{ $search ?? '' }}"
+                                class="form-control custom-input" placeholder="Search TMP number or card number">
                         </div>
 
                         <div class="col-md-3">
@@ -319,7 +323,8 @@
                                 Search
                             </button>
 
-                            <a href="{{ route('admin.temporary-id-cards.index') }}" class="btn btn-light border custom-btn">
+                            <a href="{{ route('admin.temporary-id-cards.index') }}"
+                                class="btn btn-light border custom-btn">
                                 Reset
                             </a>
                         </div>
@@ -356,7 +361,7 @@
                                 </td>
 
                                 <td>
-                                    @if($card->status === 'pending')
+                                    @if ($card->status === 'pending')
                                         <span class="badge-status badge-pending">Pending</span>
                                     @elseif($card->status === 'downloaded')
                                         <span class="badge-status badge-downloaded">Downloaded</span>
@@ -390,7 +395,9 @@
                                     </div>
 
 
-                                    @include('admin.temporary_id_cards.partials.preview-modal', ['card' => $card])
+                                    @include('admin.temporary_id_cards.partials.preview-modal', [
+                                        'card' => $card,
+                                    ])
 
                                 </td>
                             </tr>

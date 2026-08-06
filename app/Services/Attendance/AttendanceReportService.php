@@ -93,9 +93,6 @@ class AttendanceReportService
     /**
      * Get Schedule
      */
-    /**
-     * Get Schedule
-     */
     protected function getSchedule(
         int $scheduleId
     ): ?ClassSchedule {
@@ -144,13 +141,8 @@ class AttendanceReportService
     }
 
     /**
-     * Get Enrollments
-     */
-    /**
      * Get Student Enrollments
-     */
-    /**
-     * Get Student Enrollments
+     * Modified: Only include enrollments with valid (non-deleted) students
      */
     protected function getEnrollments(
         ClassSchedule $schedule
@@ -205,6 +197,11 @@ class AttendanceReportService
                 true
             )
 
+            // ✅ Add this: Only include enrollments with existing students
+            ->whereHas('student', function ($query) {
+                $query->whereNotNull('id'); // or add any other active conditions
+            })
+
             ->orderBy('students.custom_id')
 
             ->get();
@@ -212,9 +209,7 @@ class AttendanceReportService
 
     /**
      * Get Attendance Records
-     */
-    /**
-     * Get Attendance Records
+     * Modified: Only include attendance records with valid (non-deleted) students
      */
     protected function getAttendanceRecords(
         int $scheduleId
@@ -240,12 +235,14 @@ class AttendanceReportService
                 $scheduleId
             )
 
+            // ✅ Add this: Only include attendance records with existing students
+            ->whereHas('student', function ($query) {
+                $query->whereNotNull('id'); // or add any other active conditions
+            })
+
             ->get();
     }
 
-    /**
-     * Get Payment Records
-     */
     /**
      * Get Payment Records
      */
@@ -255,20 +252,20 @@ class AttendanceReportService
     ) {
 
         /*
-    |--------------------------------------------------------------------------
-    | Enrollment IDs
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Enrollment IDs
+        |--------------------------------------------------------------------------
+        */
 
         $enrollmentIds = $enrollments
             ->pluck('id')
             ->toArray();
 
         /*
-    |--------------------------------------------------------------------------
-    | Payments
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Payments
+        |--------------------------------------------------------------------------
+        */
 
         $paymentDate = Carbon::parse($schedule->class_date);
 
@@ -316,9 +313,6 @@ class AttendanceReportService
     /**
      * Build Summary
      */
-    /**
-     * Build Summary
-     */
     protected function buildSummary(
         $enrollments,
         $attendanceRecords,
@@ -326,18 +320,18 @@ class AttendanceReportService
     ): array {
 
         /*
-    |--------------------------------------------------------------------------
-    | Total Students
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Total Students
+        |--------------------------------------------------------------------------
+        */
 
         $totalStudents = $enrollments->count();
 
         /*
-    |--------------------------------------------------------------------------
-    | Present Students
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Present Students
+        |--------------------------------------------------------------------------
+        */
 
         $presentStudents = $attendanceRecords
 
@@ -348,10 +342,10 @@ class AttendanceReportService
             ->count();
 
         /*
-    |--------------------------------------------------------------------------
-    | Absent Students
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Absent Students
+        |--------------------------------------------------------------------------
+        */
 
         $absentStudents = max(
             $totalStudents - $presentStudents,
@@ -359,18 +353,18 @@ class AttendanceReportService
         );
 
         /*
-    |--------------------------------------------------------------------------
-    | Paid Students
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Paid Students
+        |--------------------------------------------------------------------------
+        */
 
         $paidStudents = $paymentRecords->count();
 
         /*
-    |--------------------------------------------------------------------------
-    | Unpaid Students
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Unpaid Students
+        |--------------------------------------------------------------------------
+        */
 
         $unpaidStudents = max(
             $totalStudents - $paidStudents,
@@ -378,10 +372,10 @@ class AttendanceReportService
         );
 
         /*
-    |--------------------------------------------------------------------------
-    | Attendance Percentage
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Attendance Percentage
+        |--------------------------------------------------------------------------
+        */
 
         $attendancePercentage = $totalStudents > 0
 
@@ -392,10 +386,10 @@ class AttendanceReportService
             : 0;
 
         /*
-    |--------------------------------------------------------------------------
-    | Payment Percentage
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Payment Percentage
+        |--------------------------------------------------------------------------
+        */
 
         $paymentPercentage = $totalStudents > 0
 
@@ -406,10 +400,10 @@ class AttendanceReportService
             : 0;
 
         /*
-    |--------------------------------------------------------------------------
-    | Response
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Response
+        |--------------------------------------------------------------------------
+        */
 
         return [
 
@@ -432,15 +426,7 @@ class AttendanceReportService
 
     /**
      * Build Student Report
-     */
-    /**
-     * Build Student Report
-     */
-    /**
-     * Build Student Report
-     */
-    /**
-     * Build Student Report
+     * Modified: Added defensive null checks for safety
      */
     protected function buildStudentReport(
         $enrollments,
@@ -449,10 +435,10 @@ class AttendanceReportService
     ): array {
 
         /*
-    |--------------------------------------------------------------------------
-    | Key Attendance Records by Enrollment ID
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Key Attendance Records by Enrollment ID
+        |--------------------------------------------------------------------------
+        */
 
         $attendanceByEnrollment = $attendanceRecords
 
@@ -461,20 +447,26 @@ class AttendanceReportService
             ->keyBy('student_class_enrollment_id');
 
         /*
-    |--------------------------------------------------------------------------
-    | Response
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Response
+        |--------------------------------------------------------------------------
+        */
 
         $students = [];
 
         /*
-    |--------------------------------------------------------------------------
-    | Enrolled Students
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Enrolled Students
+        |--------------------------------------------------------------------------
+        */
 
         foreach ($enrollments as $enrollment) {
+
+            // ✅ Defensive check: Skip if student is null (safety net)
+            $student = $enrollment->student;
+            if (!$student) {
+                continue;
+            }
 
             $attendance = $attendanceByEnrollment->get(
                 $enrollment->id
@@ -483,8 +475,6 @@ class AttendanceReportService
             $payment = $paymentRecords->get(
                 $enrollment->id
             );
-
-            $student = $enrollment->student;
 
             $students[] = [
 
@@ -544,10 +534,10 @@ class AttendanceReportService
         }
 
         /*
-    |--------------------------------------------------------------------------
-    | Attendance Without Enrollment
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Attendance Without Enrollment
+        |--------------------------------------------------------------------------
+        */
 
         foreach ($attendanceRecords as $attendance) {
 
@@ -555,7 +545,11 @@ class AttendanceReportService
                 continue;
             }
 
+            // ✅ Defensive check: Skip if student is null (safety net)
             $student = $attendance->student;
+            if (!$student) {
+                continue;
+            }
 
             $students[] = [
 
@@ -607,10 +601,10 @@ class AttendanceReportService
         }
 
         /*
-    |--------------------------------------------------------------------------
-    | Sort by Student Code
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Sort by Student Code
+        |--------------------------------------------------------------------------
+        */
 
         return collect($students)
 

@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\TemporaryIdCard;
 use App\Http\Controllers\Controller;
+use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\Snappy\Facades\SnappyPdf as Pdf;
+use Illuminate\Support\Facades\Log;
 
 class TemporaryIDCardController extends Controller
 {
@@ -403,5 +405,100 @@ class TemporaryIDCardController extends Controller
             ]);
 
         return $pdf->download('temporary-id-cards.pdf');
+    }
+
+    public function downloadIdCardPdf()
+    {
+        try {
+            // Get all issued cards with student relationship
+            $cards = TemporaryIdCard::with(['student'])
+                ->issued()
+                ->orderBy('temporary_id_number')
+                ->get();
+
+            if ($cards->isEmpty()) {
+                return back()->with('error', 'No issued temporary ID cards found.');
+            }
+
+            // ====== Card Statistics ======
+            $totalIssued = $cards->count();
+
+            // Get all card status counts
+            $totalCards = TemporaryIdCard::count();
+            $pendingCount = TemporaryIdCard::pending()->count();
+            $downloadedCount = TemporaryIdCard::downloaded()->count();
+            $issuedCount = TemporaryIdCard::issued()->count();
+            $activeCount = TemporaryIdCard::active()->count();
+            $expiredCount = TemporaryIdCard::expired()->count();
+
+            // Cards with students assigned (active status)
+            $assignedToStudents = TemporaryIdCard::active()->count();
+
+            // ====== Student Statistics ======
+            $totalStudents = Student::count();
+            $activeStudents = Student::where('is_active', true)->count();
+            $inactiveStudents = Student::where('is_active', false)->count();
+
+            // Students with temporary QR codes
+            $studentsWithTempQr = Student::whereNotNull('temporary_qr_code')->count();
+
+            // ====== Additional Details ======
+            // Get issued date range
+            $firstIssued = $cards->first()->created_at ?? null;
+            $lastIssued = $cards->last()->created_at ?? null;
+
+            // Cards with card numbers
+            $cardsWithNumbers = $cards->whereNotNull('card_number')->count();
+            $cardsWithoutNumbers = $totalIssued - $cardsWithNumbers;
+
+            // ====== Get student details for each card ======
+            $cardDetails = $cards->map(function ($card) {
+                return [
+                    'temporary_id_number' => $card->temporary_id_number,
+                    'card_number' => $card->card_number,
+                    'student_name' => $card->student ? ($card->student->initial_name ?? $card->student->full_name) : null,
+                    'student_id' => $card->student ? $card->student->custom_id : null,
+                    'guardian_mobile' => $card->student ? ($card->student->guardian_mobile ?? $card->student->mobile) : null,
+                    'student_mobile' => $card->student ? $card->student->mobile : null,
+                    'student_email' => $card->student ? $card->student->email : null,
+                    'grade_name' => $card->student && $card->student->grade ? $card->student->grade->grade_name : null,
+                    'activated_at' => $card->activated_at,
+                    'created_at' => $card->created_at,
+                    'is_assigned' => $card->student ? true : false,
+                ];
+            });
+
+            $pdf = Pdf::loadView(
+                'admin.temporary_id_cards.pdf.pdf',
+                compact(
+                    'cards',
+                    'cardDetails',
+                    'totalIssued',
+                    'totalCards',
+                    'pendingCount',
+                    'downloadedCount',
+                    'issuedCount',
+                    'activeCount',
+                    'expiredCount',
+                    'assignedToStudents',
+                    'totalStudents',
+                    'activeStudents',
+                    'inactiveStudents',
+                    'studentsWithTempQr',
+                    'firstIssued',
+                    'lastIssued',
+                    'cardsWithNumbers',
+                    'cardsWithoutNumbers'
+                )
+            );
+
+            return $pdf->download('temporary-id-cards-' . now()->format('Y-m-d') . '.pdf');
+        } catch (\Exception $e) {
+            Log::error('PDF Download Error: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            return back()->with('error', 'Failed to download PDF: ' . $e->getMessage());
+        }
     }
 }
