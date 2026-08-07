@@ -917,6 +917,11 @@ Route::middleware([
             'temporary-id-cards/download-pdf',
             [TemporaryIDCardController::class, 'downloadPdf']
         )->name('temporary-id-cards.download-pdf');
+
+        Route::get(
+            'temporary-id-cards/pdf',
+            [TemporaryIDCardController::class, 'downloadIdCardPdf']
+        )->name('temporary-id-cards.pdf');
         /*
 |--------------------------------------------------------------------------
 | Daily Reports

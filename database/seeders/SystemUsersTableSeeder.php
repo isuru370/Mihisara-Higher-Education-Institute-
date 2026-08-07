@@ -30,7 +30,7 @@ class SystemUsersTableSeeder extends Seeder
                 'custom_id' => 'ADM002',
                 'full_name' => 'Mihisara Admin',
                 'email' => 'mihisara@gmail.com',
-                'password' => 'Admin@mihisara',
+                'password' => '@1976',
                 'role' => 'ADMIN',
 
                 'mobile' => '0719876543',
