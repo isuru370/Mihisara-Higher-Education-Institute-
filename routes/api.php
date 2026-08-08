@@ -3,6 +3,7 @@
 use App\Http\Controllers\API\AdmissionPaymentController;
 use App\Http\Controllers\API\AttendanceReportController;
 use App\Http\Controllers\API\AttendanceScheduleController;
+use App\Http\Controllers\API\StudentCardAssignmentController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\Auth\LoginController;
 use App\Http\Controllers\API\ClassScheduleController;
@@ -127,7 +128,7 @@ Route::middleware([
         '/quick-photo/update',
         [QuickPhotoController::class, 'imageUpdate']
     )->name('api.quick-photo.imageUpdate');
-    
+
     Route::get(
         '/students-image/fetch-image',
         [StudentImageController::class, 'fetchStudentImage']
@@ -400,4 +401,30 @@ Route::middleware([
         Route::get('/stats', [NotificationController::class, 'stats']);
         Route::delete('/cleanup', [NotificationController::class, 'deleteOld']);
     });
+
+    /*
+|--------------------------------------------------------------------------
+| Student Card Assignment
+|--------------------------------------------------------------------------
+*/
+
+    Route::prefix('student-card-assignment')
+        ->name('api.student-card-assignment.')
+        ->group(function () {
+
+            Route::post(
+                '/search-student',
+                [StudentCardAssignmentController::class, 'searchStudent']
+            )->name('search-student');
+
+            Route::post(
+                '/search-card',
+                [StudentCardAssignmentController::class, 'searchAvailableCard']
+            )->name('search-card');
+
+            Route::post(
+                '/assign',
+                [StudentCardAssignmentController::class, 'assignCard']
+            )->name('assign');
+        });
 });
