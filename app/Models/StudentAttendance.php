@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Observers\StudentAttendanceObserver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -26,6 +27,10 @@ class StudentAttendance extends Model
         'is_synced' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        static::observe(StudentAttendanceObserver::class);
+    }
 
     public function student()
     {

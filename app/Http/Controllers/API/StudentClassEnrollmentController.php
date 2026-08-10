@@ -322,4 +322,40 @@ class StudentClassEnrollmentController extends Controller
             ], 500);
         }
     }
+
+    public function deactivateEnrollment(int $enrollmentId): JsonResponse
+    {
+        try {
+            $enrollment = StudentClassEnrollment::findOrFail($enrollmentId);
+
+            if (! $enrollment->is_active) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Student enrollment is already inactive.',
+                ], 422);
+            }
+
+            $enrollment->update([
+                'is_active' => false,
+                'left_at' => now()->toDateString(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Student removed from class successfully.',
+            ]);
+        } catch (Exception $e) {
+            Log::error('Student Enrollment Deactivation Error', [
+                'enrollment_id' => $enrollmentId,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to remove student from class.',
+            ], 500);
+        }
+    }
 }
