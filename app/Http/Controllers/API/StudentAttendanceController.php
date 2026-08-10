@@ -417,4 +417,35 @@ class StudentAttendanceController extends Controller
             ], 500);
         }
     }
+
+    public function deleteAttendance(int $attendanceId): JsonResponse
+    {
+        try {
+            $attendance = StudentAttendance::findOrFail($attendanceId);
+
+            $attendance->forceDelete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Attendance deleted successfully.',
+            ], 200);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Attendance record not found.',
+            ], 404);
+        } catch (Throwable $e) {
+            Log::error('Attendance Delete Error', [
+                'attendance_id' => $attendanceId,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to delete attendance.',
+            ], 500);
+        }
+    }
 }

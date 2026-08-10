@@ -502,6 +502,8 @@ class AttendanceReportService
 
                 'attendance' => [
 
+                    'id' => $attendance?->id,
+
                     'is_present' => $attendance !== null,
 
                     'attended_at' => $attendance?->attended_at?->format('Y-m-d H:i:s'),

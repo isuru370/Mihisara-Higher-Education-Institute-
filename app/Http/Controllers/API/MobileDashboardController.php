@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassSchedule;
 use App\Models\Payment;
 use App\Models\Student;
+use App\Models\StudentCard;
 use App\Models\StudentClass;
 use App\Models\Teacher;
 use App\Services\SmsService;
@@ -61,6 +62,7 @@ class MobileDashboardController extends Controller
 
             $temporaryStudentCount = Student::where('permanent_qr_active', false)->count();
             $permanentStudentCount = Student::where('permanent_qr_active', true)->count();
+            $availableQrCodes = StudentCard::where('status', 'available')->count();
 
             return response()->json([
                 'success' => true,
@@ -76,6 +78,7 @@ class MobileDashboardController extends Controller
                     'current_month_admissions' => $currentMonthAdmissions,
                     'temporary_student_count' => $temporaryStudentCount,
                     'permanent_student_count' => $permanentStudentCount,
+                    'available_id_card' => $availableQrCodes,
                 ]
             ], 200);
         } catch (Throwable $e) {

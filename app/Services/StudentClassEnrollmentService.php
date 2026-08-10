@@ -127,4 +127,31 @@ class StudentClassEnrollmentService
             ];
         })->toArray();
     }
+
+    public function deactivateEnrollment(int $enrollmentId): bool
+    {
+        try {
+            $enrollment = StudentClassEnrollment::find($enrollmentId);
+
+            if (!$enrollment) {
+                return false;
+            }
+
+            $enrollment->update([
+                'is_active' => false,
+                'left_at' => now()->toDateString(),
+            ]);
+
+            return true;
+        } catch (Throwable $e) {
+            Log::error('Student Enrollment Deactivation Error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'enrollment_id' => $enrollmentId,
+            ]);
+
+            return false;
+        }
+    }
 }
