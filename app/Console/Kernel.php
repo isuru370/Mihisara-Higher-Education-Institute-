@@ -24,7 +24,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('disable:expired-students')->dailyAt('00:00');
 
         $schedule->command('backup:database')
-            ->dailyAt('02:15')
+            ->dailyAt('20:00')
             ->timezone('Asia/Colombo');
     }
 
