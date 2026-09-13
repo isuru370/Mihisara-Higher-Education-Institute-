@@ -1369,7 +1369,7 @@
                 let html = `
                     <div id="receipt-print-area" class="receipt-paper">
                         <div class="text-center">
-                            <strong>NEXORA EDU</strong><br>
+                            <strong>{{ config('app.name') }}</strong><br>
                             PAYMENT RECEIPT
                         </div>
                         <div class="receipt-line"></div>
