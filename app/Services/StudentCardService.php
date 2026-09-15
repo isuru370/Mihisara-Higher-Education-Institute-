@@ -18,49 +18,127 @@ class StudentCardService
     public function generateCards(int $quantity): void
     {
         if ($quantity <= 0) {
-            throw new \InvalidArgumentException('Quantity must be greater than zero.');
+            throw new \InvalidArgumentException(
+                'Quantity must be greater than zero.'
+            );
         }
 
         try {
 
-            DB::transaction(function () use ($quantity) {
+            // -------------------------------------------------
+            // Get prefixes from configuration
+            // -------------------------------------------------
+
+            $cardPrefix = config('student_card.card_prefix');
+            $qrPrefix = config('student_card.qr_prefix');
+
+            // -------------------------------------------------
+            // Validate Card Prefix
+            // -------------------------------------------------
+
+            if (!is_string($cardPrefix) || trim($cardPrefix) === '') {
+                throw new \RuntimeException(
+                    'STUDENT_CARD_PREFIX must be configured in the .env file and cannot be empty.'
+                );
+            }
+
+            // -------------------------------------------------
+            // Validate QR Prefix
+            // -------------------------------------------------
+
+            if (!is_string($qrPrefix) || trim($qrPrefix) === '') {
+                throw new \RuntimeException(
+                    'STUDENT_CARD_QR_PREFIX must be configured in the .env file and cannot be empty.'
+                );
+            }
+
+            // Remove accidental spaces
+            $cardPrefix = trim($cardPrefix);
+            $qrPrefix = trim($qrPrefix);
+
+            // -------------------------------------------------
+            // Generate Cards
+            // -------------------------------------------------
+
+            DB::transaction(function () use (
+                $quantity,
+                $cardPrefix,
+                $qrPrefix
+            ) {
 
                 $lastSequence = StudentCard::max('card_sequence') ?? 0;
 
                 $cards = [];
+
+                $now = now();
 
                 for ($i = 1; $i <= $quantity; $i++) {
 
                     $sequence = $lastSequence + $i;
 
                     $cards[] = [
-                        'student_id'    => null,
+
+                        'student_id' => null,
+
                         'card_sequence' => $sequence,
-                        'card_number'   => 'MIHISARA' . str_pad($sequence, 6, '0', STR_PAD_LEFT),
-                        'qr_code'       => 'ST' . str_pad($sequence, 3, '0', STR_PAD_LEFT),
-                        'status'        => 'available',
-                        'is_current'    => false,
-                        'issued_at'     => null,
+
+                        'card_number' =>
+                        $cardPrefix .
+                            str_pad(
+                                $sequence,
+                                6,
+                                '0',
+                                STR_PAD_LEFT
+                            ),
+
+                        'qr_code' =>
+                        $qrPrefix .
+                            str_pad(
+                                $sequence,
+                                3,
+                                '0',
+                                STR_PAD_LEFT
+                            ),
+
+                        'status' => 'available',
+
+                        'is_current' => false,
+
+                        'issued_at' => null,
+
                         'deactivated_at' => null,
-                        'remarks'       => null,
-                        'created_at'    => now(),
-                        'updated_at'    => now(),
+
+                        'remarks' => null,
+
+                        'created_at' => $now,
+
+                        'updated_at' => $now,
                     ];
                 }
 
                 StudentCard::insert($cards);
             });
 
+            // -------------------------------------------------
+            // Success Log
+            // -------------------------------------------------
+
             Log::info('Student cards generated successfully.', [
                 'quantity' => $quantity,
+                'card_prefix' => $cardPrefix,
+                'qr_prefix' => $qrPrefix,
             ]);
         } catch (\Throwable $e) {
 
+            // -------------------------------------------------
+            // Error Log
+            // -------------------------------------------------
+
             Log::error('Student card generation failed.', [
                 'quantity' => $quantity,
-                'error'    => $e->getMessage(),
-                'file'     => $e->getFile(),
-                'line'     => $e->getLine(),
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
             ]);
 
             throw $e;

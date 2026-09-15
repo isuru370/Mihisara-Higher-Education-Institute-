@@ -53,6 +53,23 @@
             @endif
         </div>
 
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">STUDENT SERVICES</div>
+
+            @if (hasPermission('new-payment.index'))
+                <div class="nav-item">
+                    <button type="button"
+                        class="nav-link-custom {{ request()->routeIs('admin.new-payment.index') ? 'active' : '' }}"
+                        data-route="admin.new-payment.index"
+                        data-href="{{ route('admin.new-payment.index') }}">
+                        <i class="bi bi-credit-card-fill"></i>
+                        <span>Payments</span>
+                    </button>
+                </div>
+            @endif
+
+        </div>
+
         <!-- NOTIFICATION SECTION -->
         <div class="sidebar-section">
             <div class="sidebar-section-title">NOTIFICATION</div>

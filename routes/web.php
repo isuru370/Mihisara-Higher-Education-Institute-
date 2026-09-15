@@ -33,6 +33,7 @@ use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Admin\MonthlyReportController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\ReceiptController;
+use App\Http\Controllers\Admin\NewPayment\PaymentController;
 use App\Http\Controllers\Admin\StudentCardController;
 use App\Http\Controllers\Admin\StudentCardRegistrationController;
 use App\Http\Controllers\Admin\StudentClassManagementController;
@@ -326,6 +327,50 @@ Route::middleware([
             '/students-payments/{id}',
             [StudentPaymentController::class, 'show']
         )->name('students-payments.show');
+
+
+        Route::prefix('new-payment')
+            ->name('new-payment.')
+            ->middleware('role:ADMIN,USER')
+            ->controller(PaymentController::class)
+            ->group(function () {
+
+                /*
+        |--------------------------------------------------------------------------
+        | Payment Screen
+        |--------------------------------------------------------------------------
+        */
+
+                Route::get('/', 'index')
+                    ->name('index');
+
+                /*
+        |--------------------------------------------------------------------------
+        | Read Student
+        |--------------------------------------------------------------------------
+        */
+
+                Route::post('/read', 'read')
+                    ->name('read');
+
+                /*
+        |--------------------------------------------------------------------------
+        | Single Payment
+        |--------------------------------------------------------------------------
+        */
+
+                Route::post('/pay', 'pay')
+                    ->name('pay');
+
+                /*
+        |--------------------------------------------------------------------------
+        | Bulk Payment
+        |--------------------------------------------------------------------------
+        */
+
+                Route::post('/bulk-pay', 'bulkPay')
+                    ->name('bulk-pay');
+            });
 
 
         /*
