@@ -33,14 +33,6 @@ class ReceiptService
 
         $row = $this->flattenRow($payment, $paymentData);
 
-        $summary = [
-            'total_class_fee' => $row['class_fee'],
-            'total_final_fee' => $row['total_fee'],
-            'total_discount'  => $row['discount_amount'],
-            'total_paid'      => $row['paid_amount'],
-            'total_balance'   => $row['balance'],
-        ];
-
         return [
             'payment' => $payment,
 
@@ -62,7 +54,18 @@ class ReceiptService
 
             'payment_method' => $payment->payment_method,
 
-            'summary' => $summary,
+            /*
+            |--------------------------------------------------------------------------
+            | Single Summary
+            |--------------------------------------------------------------------------
+            |
+            | Only total class fee is required.
+            |
+            */
+
+            'summary' => [
+                'total_class_fee' => $row['class_fee'],
+            ],
         ];
     }
 
@@ -83,10 +86,6 @@ class ReceiptService
         $rows = [];
 
         $totalClassFee = 0;
-        $totalFinalFee = 0;
-        $totalDiscount = 0;
-        $totalPaid = 0;
-        $totalBalance = 0;
 
         $firstStudent = null;
         $firstPayment = null;
@@ -99,11 +98,13 @@ class ReceiptService
 
             $rows[] = $row;
 
+            /*
+            |--------------------------------------------------------------------------
+            | Add Class Fee to Bulk Total
+            |--------------------------------------------------------------------------
+            */
+
             $totalClassFee += (float) $row['class_fee'];
-            $totalFinalFee += (float) $row['total_fee'];
-            $totalDiscount += (float) $row['discount_amount'];
-            $totalPaid      += (float) $row['paid_amount'];
-            $totalBalance   += (float) $row['balance'];
 
             if (!$firstStudent) {
                 $firstStudent = $payment->student;
@@ -133,16 +134,27 @@ class ReceiptService
                 ? $paidAt->format('H:i:s')
                 : null,
 
+            /*
+            |--------------------------------------------------------------------------
+            | Payment Method
+            |--------------------------------------------------------------------------
+            */
+
             'payment_method' => $firstPayment?->payment_method,
 
             'rows' => $rows,
 
+            /*
+            |--------------------------------------------------------------------------
+            | Bulk Summary
+            |--------------------------------------------------------------------------
+            |
+            | Only Total Fee.
+            |
+            */
+
             'summary' => [
                 'total_class_fee' => round($totalClassFee, 2),
-                'total_final_fee' => round($totalFinalFee, 2),
-                'total_discount'  => round($totalDiscount, 2),
-                'total_paid'      => round($totalPaid, 2),
-                'total_balance'   => round($totalBalance, 2),
             ],
         ];
     }
@@ -150,21 +162,22 @@ class ReceiptService
     /**
      * Flatten one payment row for JS receipt consumption.
      *
-     * Returns flat fields so JS can access directly:
-     *   row.class_name
-     *   row.category
-     *   row.grade
-     *   row.teacher
-     *   row.payment_month
-     *   row.receipt_number
-     *   row.class_fee
-     *   row.total_fee
-     *   row.paid_amount
+     * Available fields:
+     *
+     * row.class_name
+     * row.category
+     * row.grade
+     * row.teacher
+     * row.payment_month
+     * row.receipt_number
+     * row.class_fee
+     * row.payment_status
      */
     protected function flattenRow(
         Payment $payment,
         array $paymentData
     ): array {
+
         $fee      = $paymentData['fee'] ?? [];
         $class    = $paymentData['class'] ?? [];
         $category = $paymentData['category'] ?? [];
@@ -173,9 +186,6 @@ class ReceiptService
         |--------------------------------------------------------------------------
         | Class Fee
         |--------------------------------------------------------------------------
-        |
-        | Resolve from multiple sources (skip zero values).
-        |
         */
 
         $classFeeCandidates = [
@@ -188,6 +198,7 @@ class ReceiptService
         $classFee = 0.0;
 
         foreach ($classFeeCandidates as $candidate) {
+
             $value = (float) ($candidate ?? 0);
 
             if ($value > 0) {
@@ -196,32 +207,9 @@ class ReceiptService
             }
         }
 
-        $totalFee = (float) (
-            ($fee['total_fee'] ?? 0) > 0
-            ? $fee['total_fee']
-            : $classFee
-        );
-
-        $discountAmount = (float) (
-            $fee['discount_amount']
-            ?? $payment->discount_amount
-            ?? 0
-        );
-
-        $paidAmount = (float) (
-            $fee['paid_amount']
-            ?? $payment->amount
-            ?? 0
-        );
-
-        $balance = (float) (
-            $fee['balance']
-            ?? max($totalFee - $discountAmount - $paidAmount, 0)
-        );
-
         /*
         |--------------------------------------------------------------------------
-        | Grade (multiple fallbacks)
+        | Grade
         |--------------------------------------------------------------------------
         */
 
@@ -234,6 +222,7 @@ class ReceiptService
         $grade = null;
 
         foreach ($gradeCandidates as $candidate) {
+
             if (!empty($candidate)) {
                 $grade = $candidate;
                 break;
@@ -242,7 +231,7 @@ class ReceiptService
 
         /*
         |--------------------------------------------------------------------------
-        | Teacher (multiple fallbacks)
+        | Teacher
         |--------------------------------------------------------------------------
         */
 
@@ -255,6 +244,7 @@ class ReceiptService
         $teacher = null;
 
         foreach ($teacherCandidates as $candidate) {
+
             if (!empty($candidate)) {
                 $teacher = $candidate;
                 break;
@@ -263,7 +253,7 @@ class ReceiptService
 
         /*
         |--------------------------------------------------------------------------
-        | Class name
+        | Class Name
         |--------------------------------------------------------------------------
         */
 
@@ -288,30 +278,50 @@ class ReceiptService
         */
 
         $paymentMonth = $paymentData['payment_month']
-            ?? ($payment->payment_month
-                ? $payment->payment_month->format('Y-m-d')
-                : null);
+            ?? (
+                $payment->payment_month
+                    ? $payment->payment_month->format('Y-m-d')
+                    : null
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Payment Status
+        |--------------------------------------------------------------------------
+        */
+
+        $paymentStatus = $fee['payment_status']
+            ?? $payment->status;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Final Receipt Row
+        |--------------------------------------------------------------------------
+        |
+        | Only:
+        |
+        | - Class Fee
+        | - Payment Status
+        |
+        */
 
         return [
-            // Flat fields for JS
-            'class_name'      => $className,
-            'category'        => $categoryName,
-            'grade'           => $grade,
-            'teacher'         => $teacher,
-            'payment_month'   => $paymentMonth,
-            'receipt_number'  => $paymentData['receipt_number']
+            'class_name' => $className,
+
+            'category' => $categoryName,
+
+            'grade' => $grade,
+
+            'teacher' => $teacher,
+
+            'payment_month' => $paymentMonth,
+
+            'receipt_number' => $paymentData['receipt_number']
                 ?? $payment->receipt_number,
 
-            // Fee fields
-            'class_fee'       => round($classFee, 2),
-            'total_fee'       => round($totalFee, 2),
-            'final_fee'       => round($classFee, 2),
-            'discount_amount' => round($discountAmount, 2),
-            'paid_amount'     => round($paidAmount, 2),
-            'balance'         => round($balance, 2),
+            'class_fee' => round($classFee, 2),
 
-            'payment_status'  => $fee['payment_status']
-                ?? $payment->status,
+            'payment_status' => $paymentStatus,
         ];
     }
 }

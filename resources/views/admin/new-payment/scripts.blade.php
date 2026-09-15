@@ -89,16 +89,6 @@
             |--------------------------------------------------------------------------
             | Class Fee Resolver
             |--------------------------------------------------------------------------
-            |
-            | IMPORTANT:
-            | PaymentDataBuilder returns:
-            |   class_fee
-            |   total_fee
-            |   final_fee
-            |
-            | For safety we also support:
-            |   fee.class_fee (legacy)
-            |
             */
 
             function resolveClassFee(item) {
@@ -135,18 +125,14 @@
                 try {
                     let normalized = String(value);
 
-                    // "2026-08" -> "2026-08-01"
                     if (/^\d{4}-\d{2}$/.test(normalized)) {
                         normalized = normalized + '-01';
                     }
 
-                    // ISO string like "2026-08-31T18:30:00.000000Z"
-                    // -> strip timezone, treat as local date
                     if (/T\d{2}:\d{2}/.test(normalized)) {
                         normalized = normalized.split('T')[0];
                     }
 
-                    // Now "2026-08-01" -> parse as local date
                     const parts = normalized.split('-');
 
                     if (parts.length === 3) {
@@ -176,7 +162,6 @@
                 try {
                     let normalized = String(value);
 
-                    // Strip time part if present
                     if (/T\d{2}:\d{2}/.test(normalized)) {
                         normalized = normalized.split('T')[0];
                     }
@@ -209,12 +194,10 @@
                 if (!value) return '-';
 
                 try {
-                    // Already HH:MM:SS
                     if (/^\d{2}:\d{2}(:\d{2})?$/.test(String(value))) {
                         return String(value);
                     }
 
-                    // Extract time from ISO string
                     if (/T\d{2}:\d{2}/.test(String(value))) {
                         const timePart = String(value).split('T')[1] || '';
                         const clean = timePart.replace(/Z$/, '').split('.')[0];
@@ -239,6 +222,182 @@
                 } catch (e) {
                     return String(value);
                 }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Month Parser
+            |--------------------------------------------------------------------------
+            |
+            | Accepts:
+            |   "2026-06"
+            |   "2026-06-01"
+            |   "2026-06-15T00:00:00.000000Z"
+            |   "June 2026"
+            |
+            | Returns a Date object set to first day of that month
+            | or null if invalid.
+            |
+            */
+
+            function parseMonthToDate(value) {
+
+                if (!value) return null;
+
+                try {
+                    let normalized = String(value).trim();
+
+                    /*
+                    | "June 2026" → "2026-06-01"
+                    */
+                    const monthNames = [
+                        'january','february','march','april','may','june',
+                        'july','august','september','october','november','december'
+                    ];
+
+                    const nameMatch = normalized
+                        .toLowerCase()
+                        .match(/^([a-z]+)\s+(\d{4})$/);
+
+                    if (nameMatch) {
+                        const idx = monthNames.indexOf(nameMatch[1]);
+
+                        if (idx !== -1) {
+                            return new Date(
+                                parseInt(nameMatch[2]),
+                                idx,
+                                1
+                            );
+                        }
+                    }
+
+                    /*
+                    | Strip time part
+                    */
+                    if (/T\d{2}:\d{2}/.test(normalized)) {
+                        normalized = normalized.split('T')[0];
+                    }
+
+                    /*
+                    | "2026-06" → "2026-06-01"
+                    */
+                    if (/^\d{4}-\d{2}$/.test(normalized)) {
+                        normalized = normalized + '-01';
+                    }
+
+                    const parts = normalized.split('-');
+
+                    if (parts.length === 3) {
+                        const d = new Date(
+                            parseInt(parts[0]),
+                            parseInt(parts[1]) - 1,
+                            parseInt(parts[2])
+                        );
+
+                        if (!isNaN(d.getTime())) {
+                            return d;
+                        }
+                    }
+
+                    return null;
+
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Next Payment Month Resolver
+            |--------------------------------------------------------------------------
+            |
+            | Rules:
+            |   - If any selected enrollment has a previous payment
+            |       → use (latest paid month + 1)
+            |   - Otherwise → use current month
+            |
+            */
+
+            function resolveNextPaymentMonth(enrollmentIds) {
+
+                let latestPaid = null;
+
+                (enrollmentIds || []).forEach(function(id) {
+
+                    const item = currentClasses.find(function(classItem) {
+                        return Number(classItem.enrollment_id) === Number(id);
+                    });
+
+                    if (!item || !item.last_payment) {
+                        return;
+                    }
+
+                    const lastMonth =
+                        item.last_payment.payment_month ||
+                        item.last_payment.payment_month_name ||
+                        null;
+
+                    if (!lastMonth) {
+                        return;
+                    }
+
+                    const parsed = parseMonthToDate(lastMonth);
+
+                    if (!parsed) {
+                        return;
+                    }
+
+                    if (!latestPaid || parsed > latestPaid) {
+                        latestPaid = parsed;
+                    }
+                });
+
+                /*
+                |--------------------------------------------------------------------------
+                | Compute target month
+                |--------------------------------------------------------------------------
+                */
+
+                if (latestPaid) {
+                    return new Date(
+                        latestPaid.getFullYear(),
+                        latestPaid.getMonth() + 1,
+                        1
+                    );
+                }
+
+                const now = new Date();
+
+                return new Date(now.getFullYear(), now.getMonth(), 1);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Set Payment Month (default = next month after last payment)
+            |--------------------------------------------------------------------------
+            */
+
+            function setNextPaymentMonth(enrollmentIds) {
+
+                const monthInput =
+                    document.getElementById('payment-month');
+
+                if (!monthInput) {
+                    console.error('Payment month input not found.');
+                    return;
+                }
+
+                const target = resolveNextPaymentMonth(enrollmentIds);
+
+                const year =
+                    target.getFullYear();
+
+                const month =
+                    String(
+                        target.getMonth() + 1
+                    ).padStart(2, '0');
+
+                monthInput.value = `${year}-${month}`;
             }
 
             /*
@@ -1006,8 +1165,7 @@
 
                         return summary;
 
-                    },
-                    {
+                    }, {
                         classFee: 0,
                         totalFee: 0
                     }
@@ -1027,9 +1185,6 @@
                 const finalFeeInput =
                     form.querySelector('#payment-final-fee');
 
-                const discountInput =
-                    form.querySelector('#payment-discount');
-
                 const amountInput =
                     form.querySelector('#payment-amount');
 
@@ -1038,7 +1193,6 @@
 
 
                 if (!finalFeeInput ||
-                    !discountInput ||
                     !amountInput ||
                     !noteInput) {
 
@@ -1067,8 +1221,6 @@
                 finalFeeInput.value =
                     feeSummary.totalFee.toFixed(2);
 
-                discountInput.value = '0';
-
                 amountInput.value =
                     feeSummary.totalFee.toFixed(2);
 
@@ -1076,10 +1228,11 @@
 
 
                 // =====================================================
-                // Current Month
+                // Next Payment Month
+                // (last paid month + 1, or current month if none)
                 // =====================================================
 
-                setCurrentMonth();
+                setNextPaymentMonth(enrollmentIds);
 
 
                 // =====================================================
@@ -1089,49 +1242,6 @@
                 bootstrap.Modal
                     .getOrCreateInstance(modalElement)
                     .show();
-            }
-
-            function setCurrentMonth() {
-
-                const monthInput =
-                    document.getElementById('payment-month');
-
-                if (!monthInput) {
-                    console.error(
-                        'Payment month input not found.'
-                    );
-                    return;
-                }
-
-                const now = new Date();
-
-                const year =
-                    now.getFullYear();
-
-                const month =
-                    String(
-                        now.getMonth() + 1
-                    ).padStart(2, '0');
-
-                monthInput.value =
-                    `${year}-${month}`;
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | Discount
-            |--------------------------------------------------------------------------
-            */
-
-            const discountInput = document.getElementById('payment-discount');
-            if (discountInput) {
-                discountInput.addEventListener('input', function() {
-                    const finalFee = Number(document.getElementById('payment-final-fee')?.value || 0);
-                    const discount = Number(this.value || 0);
-                    const payable = Math.max(finalFee - discount, 0);
-                    const amountEl = document.getElementById('payment-amount');
-                    if (amountEl) amountEl.value = payable.toFixed(2);
-                });
             }
 
             /*
@@ -1169,7 +1279,6 @@
                     }
 
                     const paymentMethod = document.getElementById('payment-method')?.value || 'cash';
-                    const discount = Number(document.getElementById('payment-discount')?.value || 0);
                     const note = document.getElementById('payment-note')?.value || '';
                     const markMethod = document.getElementById('payment-mark-method')?.value ||
                         'manual_web';
@@ -1199,7 +1308,6 @@
                                 payment_month: month + '-01',
                                 mark_method: markMethod,
                                 payment_method: paymentMethod,
-                                discount_amount: discount,
                                 note: note
                             };
 
@@ -1221,19 +1329,16 @@
                                 throw new Error(result.message || 'Payment failed.');
                             }
 
-                            // Close payment modal
                             const modal = bootstrap.Modal.getInstance(document.getElementById(
                                 'paymentModal'));
                             if (modal) modal.hide();
 
-                            // Show receipt
                             showReceipt(result.data.receipt);
 
                             setTimeout(function() {
                                 printReceipt(result.data.receipt);
                             }, 350);
 
-                            // Refresh student data
                             await readStudent(currentStudent?.custom_id, currentMarkMethod);
 
                         } else {
@@ -1253,7 +1358,6 @@
                                     payment_month: month + '-01',
                                     mark_method: markMethod,
                                     payment_method: paymentMethod,
-                                    discount_amount: 0,
                                     note: note
                                 };
                             });
@@ -1278,19 +1382,16 @@
                                 throw new Error(result.message || 'Bulk payment failed.');
                             }
 
-                            // Close payment modal
                             const modal = bootstrap.Modal.getInstance(document.getElementById(
                                 'paymentModal'));
                             if (modal) modal.hide();
 
-                            // Show receipt
                             showReceipt(result.data.receipt);
 
                             setTimeout(function() {
                                 printReceipt(result.data.receipt);
                             }, 350);
 
-                            // Refresh student data
                             await readStudent(currentStudent?.custom_id, currentMarkMethod);
 
                         }
@@ -1317,33 +1418,13 @@
                     return '';
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Rows
-                |--------------------------------------------------------------------------
-                */
-
                 const rows =
                     receipt.rows ||
-                    receipt.payments ||
-                    [];
-
-                /*
-                |--------------------------------------------------------------------------
-                | Student (fallback to first row's student)
-                |--------------------------------------------------------------------------
-                */
+                    receipt.payments || [];
 
                 const student =
                     receipt.student ||
-                    rows[0]?.student ||
-                    {};
-
-                /*
-                |--------------------------------------------------------------------------
-                | Payment Date / Time
-                |--------------------------------------------------------------------------
-                */
+                    rows[0]?.student || {};
 
                 const paymentDate =
                     receipt.payment_date ||
@@ -1360,12 +1441,6 @@
                     rows[0]?.payment_method ||
                     '-';
 
-                /*
-                |--------------------------------------------------------------------------
-                | Header
-                |--------------------------------------------------------------------------
-                */
-
                 let html = `
                     <div id="receipt-print-area" class="receipt-paper">
                         <div class="text-center">
@@ -1381,21 +1456,9 @@
                         <div class="receipt-line"></div>
                 `;
 
-                /*
-                |--------------------------------------------------------------------------
-                | Rows
-                |--------------------------------------------------------------------------
-                */
-
                 if (rows.length) {
 
                     rows.forEach(function(row) {
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Fee (Class Fee only)
-                        |--------------------------------------------------------------------------
-                        */
 
                         const classFee = Number(
                             row.class_fee ??
@@ -1403,17 +1466,6 @@
                             row.total_fee ??
                             0
                         );
-
-                        const totalFee = Number(
-                            row.total_fee ??
-                            classFee
-                        );
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Row Fields (with nested fallback)
-                        |--------------------------------------------------------------------------
-                        */
 
                         const className =
                             row.class_name ||
@@ -1446,26 +1498,38 @@
                             row.class?.receipt_number ||
                             '-';
 
-                        const paidAmount = Number(
-                            row.paid_amount ??
-                            row.paid ??
-                            0
-                        );
+                        const paymentStatus =
+                            row.payment_status ||
+                            row.status ||
+                            '-';
 
                         html += `
-                            <div class="receipt-item">
-                                <strong>${escapeHtml(className)}</strong><br>
-                                Category: ${escapeHtml(category)}<br>
-                                Grade: ${escapeHtml(grade)}<br>
-                                Teacher: ${escapeHtml(teacher)}<br>
-                                Month: ${escapeHtml(formatReceiptMonth(month))}<br>
-                                Receipt: ${escapeHtml(receiptNumber)}<br>
-                                Class Fee: Rs. ${formatMoney(classFee)}<br>
-                                Total Fee: Rs. ${formatMoney(totalFee)}<br>
-                                Paid: Rs. ${formatMoney(paidAmount)}
-                            </div>
-                            <div class="receipt-line"></div>
-                        `;
+    <div class="receipt-item">
+
+        <strong>${escapeHtml(className)}</strong><br>
+
+        Category: ${escapeHtml(category)}<br>
+
+        Grade: ${escapeHtml(grade)}<br>
+
+        Teacher: ${escapeHtml(teacher)}<br>
+
+        Month: ${escapeHtml(
+            formatReceiptMonth(month)
+        )}<br>
+
+        Receipt: ${escapeHtml(receiptNumber)}<br>
+
+        Class Fee: Rs. ${formatMoney(classFee)}<br>
+
+        Payment Status: ${escapeHtml(
+            String(paymentStatus).toUpperCase()
+        )}
+
+    </div>
+
+    <div class="receipt-line"></div>
+`;
                     });
 
                 } else {
@@ -1478,35 +1542,31 @@
                     `;
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Summary (Class Fee only)
-                |--------------------------------------------------------------------------
-                */
-
                 const totalClassFee = Number(
                     receipt.summary?.total_class_fee || 0
                 );
 
-                const totalFee = totalClassFee;
-
-                const totalPaid = Number(
-                    receipt.summary?.total_paid || 0
-                );
-
                 html += `
-                        <div class="receipt-summary">
-                            Class Fee: Rs. ${formatMoney(totalClassFee)}<br>
-                            <strong>TOTAL FEE: Rs. ${formatMoney(totalFee)}</strong><br>
-                            <strong>TOTAL PAID: Rs. ${formatMoney(totalPaid)}</strong>
-                        </div>
-                        <div class="receipt-line"></div>
+    <div class="receipt-summary">
 
-                        Payment: ${escapeHtml(paymentMethod)}<br><br>
+        <strong>
+            TOTAL FEE: Rs. ${formatMoney(totalClassFee)}
+        </strong>
 
-                        <div class="text-center">Thank You!</div>
-                    </div>
-                `;
+    </div>
+
+    <div class="receipt-line"></div>
+
+    Payment: ${escapeHtml(paymentMethod || '-')}
+
+    <br><br>
+
+    <div class="text-center">
+        Thank You!
+    </div>
+
+    </div>
+`;
 
                 return html;
             }
