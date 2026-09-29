@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\TeacherController;
 use App\Http\Controllers\Admin\OrganizerController;
 use App\Http\Controllers\Admin\ClassCategoryController;
 use App\Http\Controllers\Admin\ClassCategoryFeeController;
+use App\Http\Controllers\Admin\ClassCategoryFeeOptionController;
 use App\Http\Controllers\Admin\ClassHallController;
 use App\Http\Controllers\Admin\ClassScheduleController;
 use App\Http\Controllers\Admin\ClassTimeTableController;
@@ -1407,5 +1408,65 @@ Route::middleware([
                     '/',
                     [StudentCardRegistrationController::class, 'store']
                 )->name('store');
+            });
+
+        Route::prefix('class-category-fee-options')
+            ->name('class-category-fee-options.')
+            ->group(function () {
+
+                Route::get('/', [
+                    ClassCategoryFeeOptionController::class,
+                    'index'
+                ])->name('index');
+
+                Route::get('/create', [
+                    ClassCategoryFeeOptionController::class,
+                    'create'
+                ])->name('create');
+
+                Route::post('/', [
+                    ClassCategoryFeeOptionController::class,
+                    'store'
+                ])->name('store');
+
+                Route::get('/{id}/edit', [
+                    ClassCategoryFeeOptionController::class,
+                    'edit'
+                ])->name('edit');
+
+                Route::put('/{id}', [
+                    ClassCategoryFeeOptionController::class,
+                    'update'
+                ])->name('update');
+
+                Route::delete('/{id}', [
+                    ClassCategoryFeeOptionController::class,
+                    'destroy'
+                ])->name('destroy');
+
+                Route::post('/{id}/set-default', [
+                    ClassCategoryFeeOptionController::class,
+                    'setDefault'
+                ])->name('set-default');
+
+                Route::post('/{id}/activate', [
+                    ClassCategoryFeeOptionController::class,
+                    'activate'
+                ])->name('activate');
+
+                Route::post('/{id}/deactivate', [
+                    ClassCategoryFeeOptionController::class,
+                    'deactivate'
+                ])->name('deactivate');
+
+                Route::post('/{id}/restore', [
+                    ClassCategoryFeeOptionController::class,
+                    'restore'
+                ])->name('restore');
+
+                Route::get(
+                    '/by-category-fee/{classCategoryFeeId}',
+                    [ClassCategoryFeeOptionController::class, 'byCategoryFee']
+                )->name('by-category-fee');
             });
     });

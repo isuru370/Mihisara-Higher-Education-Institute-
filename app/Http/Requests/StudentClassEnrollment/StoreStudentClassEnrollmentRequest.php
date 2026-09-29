@@ -18,6 +18,12 @@ class StoreStudentClassEnrollmentRequest extends FormRequest
             'student_class_id' => ['required', 'exists:student_classes,id'],
             'class_category_fee_id' => ['required', 'exists:class_category_fees,id'],
 
+            'class_category_fee_option_id' => [
+                'nullable',
+                'integer',
+                'exists:class_category_fee_options,id',
+            ],
+
             'is_free_card' => ['nullable', 'boolean'],
             'custom_fee' => ['nullable', 'numeric', 'min:0'],
             'custom_fee_reason' => ['nullable', 'string', 'max:150'],

@@ -21,19 +21,26 @@ class ClassCategory extends Model
         'is_active' => 'boolean',
     ];
 
-    // 🔹 default fees per class
     public function classCategoryFees()
     {
-        return $this->hasMany(ClassCategoryFee::class, 'class_category_id');
+        return $this->hasMany(
+            ClassCategoryFee::class,
+            'class_category_id'
+        );
     }
 
-    // 🔹 students enrolled in this category
     public function enrollments()
     {
-        return $this->hasMany(StudentClassEnrollment::class, 'class_category_id');
+        return $this->hasManyThrough(
+            StudentClassEnrollment::class,
+            ClassCategoryFee::class,
+            'class_category_id',
+            'class_category_fee_id',
+            'id',
+            'id'
+        );
     }
 
-    // 🔹 classes that use this category
     public function classes()
     {
         return $this->belongsToMany(
