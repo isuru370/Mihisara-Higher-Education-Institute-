@@ -382,9 +382,9 @@ class StudentCardService
                 ->where('qr_code', strtoupper(trim($newQrCode)))
                 ->firstOrFail();
 
-            // Old card must be Assigned or Lost
-            if (!in_array($oldCard->status, ['assigned', 'lost'])) {
-                throw new \Exception('Only assigned or lost cards can be replaced.');
+            // Old card must be Assigned, Lost or Damaged
+            if (!in_array($oldCard->status, ['assigned', 'lost', 'damaged'])) {
+                throw new \Exception('Only assigned, lost or damaged cards can be replaced.');
             }
 
             if ($oldCard->student_id === null) {
@@ -485,11 +485,12 @@ class StudentCardService
                     'deactivated_at' => now(),
                 ]);
 
-                // Disable student
+                // Disable student. custom_id is NOT NULL and unique, so it is
+                // kept (setting it to null made Mark Lost fail); the lost QR
+                // is blocked by student_disable until the card is replaced.
                 $student->update([
                     'student_disable'     => true,
                     'permanent_qr_active' => false,
-                    'custom_id'           => null,
                 ]);
 
                 // Save history

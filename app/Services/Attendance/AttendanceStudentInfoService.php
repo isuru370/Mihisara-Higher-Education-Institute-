@@ -61,6 +61,16 @@ class AttendanceStudentInfoService
 
                 /*
                 |--------------------------------------------------------------------------
+                | Current Month Payment
+                |--------------------------------------------------------------------------
+                */
+
+                'current_month_payment' => $this->getCurrentMonthPayment(
+                    $context
+                ),
+
+                /*
+                |--------------------------------------------------------------------------
                 | Attendance Summary
                 |--------------------------------------------------------------------------
                 */
@@ -108,12 +118,54 @@ class AttendanceStudentInfoService
 
                 'last_payment' => null,
 
+                'current_month_payment' => null,
+
                 'attendance' => null,
 
                 'tute' => null,
 
             ];
         }
+    }
+
+    /**
+     * Has the student paid for the current month for this enrollment?
+     *
+     * Looks at payment_month (the month the fee is for), not at when the
+     * last payment was made, so an old or advance payment is not counted.
+     */
+    protected function getCurrentMonthPayment(
+        AttendanceContext $context
+    ): array {
+
+        $now = Carbon::now();
+
+        $currentMonth = $now->format('Y-m');
+
+        $payment = $context->enrollment
+            ->payments
+            ->first(function ($payment) use ($currentMonth) {
+
+                return optional($payment->payment_month)->format('Y-m') === $currentMonth;
+            });
+
+        return [
+
+            'month' => $currentMonth,
+
+            'month_label' => $now->format('F Y'),
+
+            'is_paid' => (bool) $payment,
+
+            'is_free_card' => (bool) $context->enrollment->is_free_card,
+
+            'payment_id' => optional($payment)->id,
+
+            'receipt_number' => optional($payment)->receipt_number,
+
+            'paid_at' => optional(optional($payment)->paid_at)->format('Y-m-d H:i:s'),
+
+        ];
     }
 
     /**

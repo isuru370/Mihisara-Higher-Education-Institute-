@@ -33,10 +33,16 @@ class AttendanceScanService
     /**
      * Scan Student QR
      *
+     * When more than one class is open for the student at this time and no
+     * $classScheduleId is given, nothing is chosen: the result carries
+     * `requires_selection` = true and the open classes, so the caller can ask
+     * which class the student came for and scan again with that schedule id.
+     *
      * @param string $qrCode
+     * @param int|null $classScheduleId Class chosen by the staff member
      * @return array
      */
-    public function scan($qrCode)
+    public function scan($qrCode, ?int $classScheduleId = null)
     {
         try {
 
@@ -120,9 +126,26 @@ class AttendanceScanService
 
                 $student->id,
 
-                $todaySchedules
+                $todaySchedules,
+
+                $classScheduleId
 
             );
+
+            /*
+            |--------------------------------------------------------------------------
+            | More Than One Class Open - Ask Which One
+            |--------------------------------------------------------------------------
+            */
+
+            if (!empty($attendanceWindow['requires_selection'])) {
+
+                return $this->selection(
+                    $attendanceWindow['message'],
+                    $student,
+                    $attendanceWindow['options']
+                );
+            }
 
             if (!$attendanceWindow['success']) {
 
@@ -204,66 +227,21 @@ class AttendanceScanService
             |--------------------------------------------------------------------------
             */
 
-            return $this->success(
+            $result = $this->success(
 
                 $attendanceWindow['message'],
 
                 [
 
-                    'student' => [
+                    'student' => $this->studentPayload($student),
 
-                        'id' => $student->id,
-
-                        'student_code' => $student->permanent_qr_active
-                            ? $student->custom_id
-                            : $student->temporary_qr_code,
-
-                        'initial_name' => $student->initial_name,
-
-                        'guardian_mobile' => $student->guardian_mobile,
-
-                        'img_url' => $student->img_url,
-
-                        'grade' => [
-                            'id' => $student->grade->id,
-                            'grade_name' => $student->grade->grade_name,
-                        ],
-
-                    ],
-
-                    'schedule' => [
-
-                        'id' => $schedule->id,
-
-                        'class_date' => $schedule->class_date->format('Y-m-d'),
-
-                        'start_time' => $schedule->start_time,
-
-                        'end_time' => $schedule->end_time,
-
-                        'hall' => optional($schedule->hall)->hall_name,
-
-                        'class' => [
-
-                            'id' => optional($schedule->studentClass)->id,
-
-                            'class_name' => optional($schedule->studentClass)->class_name,
-
-                            'teacher' => optional(optional($schedule->studentClass)->teacher)->full_name,
-
-                            'subject' => optional(optional($schedule->studentClass)->subject)->subject_name,
-
-                            'grade' => optional(optional($schedule->studentClass)->grade)->grade_name,
-
-                            'category' => optional(optional($schedule->classCategoryFee)->category)->category_name,
-
-                        ],
-
-                    ],
+                    'schedule' => $this->schedulePayload($schedule),
 
                     'enrollment' => $studentInfo['enrollment'],
 
                     'last_payment' => $studentInfo['last_payment'],
+
+                    'current_month_payment' => $studentInfo['current_month_payment'],
 
                     'attendance' => $studentInfo['attendance'],
 
@@ -272,6 +250,12 @@ class AttendanceScanService
                 ]
 
             );
+
+            // Models for callers that go on to mark attendance
+            // (not part of the JSON response).
+            $result['context'] = $context;
+
+            return $result;
         } catch (Throwable $e) {
 
             Log::error('Attendance Scan Failed', [
@@ -466,15 +450,26 @@ class AttendanceScanService
 
     /**
      * Check Attendance Window
+     *
+     * A class is "open" from one hour before it starts until it ends.
+     * Cancelled / inactive classes never reach here (see getTodaySchedules).
+     *
+     * - $classScheduleId given: mark that class if it is open and not marked.
+     * - Otherwise, skip classes already marked. One open class left: use it.
+     *   More than one: return requires_selection with every open class
+     *   (marked ones included, flagged already_marked) so staff can choose.
      */
     protected function checkAttendanceWindow(
         int $studentId,
-        $todaySchedules
+        $todaySchedules,
+        ?int $classScheduleId = null
     ): array {
 
         $now = Carbon::now();
 
         $nextAttendanceOpen = null;
+
+        $openSchedules = collect();
 
         foreach ($todaySchedules as $schedule) {
 
@@ -494,78 +489,19 @@ class AttendanceScanService
                 ->copy()
                 ->subHour();
 
-            /*
-            |--------------------------------------------------------------------------
-            | Attendance Window Open
-            |--------------------------------------------------------------------------
-            */
+            if ($now->between($attendanceOpen, $classEnd)) {
 
-            if ($now->between(
-                $attendanceOpen,
-                $classEnd
-            )) {
+                $openSchedules->push($schedule);
 
-                $alreadyMarked = StudentAttendance::query()
-
-                    ->where(
-                        'student_id',
-                        $studentId
-                    )
-
-                    ->where(
-                        'class_schedule_id',
-                        $schedule->id
-                    )
-
-                    ->exists();
-
-                if ($alreadyMarked) {
-
-
-                    return [
-
-                        'success' => false,
-
-                        'status_code' => 409,
-
-                        'message' =>
-                        'Attendance has already been marked.',
-
-                    ];
-                }
-
-                return [
-
-                    'success' => true,
-
-                    'status_code' => 200,
-
-                    'message' =>
-                    'Attendance can be marked.',
-
-                    'schedule' => $schedule,
-
-                ];
+                continue;
             }
-
-            /*
-            |--------------------------------------------------------------------------
-            | Save Next Opening Time
-            |--------------------------------------------------------------------------
-            */
 
             if ($attendanceOpen->gt($now)) {
 
                 if (
-
                     is_null($nextAttendanceOpen)
-
                     ||
-
-                    $attendanceOpen->lt(
-                        $nextAttendanceOpen
-                    )
-
+                    $attendanceOpen->lt($nextAttendanceOpen)
                 ) {
 
                     $nextAttendanceOpen = $attendanceOpen;
@@ -575,11 +511,27 @@ class AttendanceScanService
 
         /*
         |--------------------------------------------------------------------------
-        | Attendance Not Yet Open
+        | No Class Open Right Now
         |--------------------------------------------------------------------------
         */
 
-        if ($nextAttendanceOpen) {
+        if ($openSchedules->isEmpty()) {
+
+            if ($nextAttendanceOpen) {
+
+                return [
+
+                    'success' => false,
+
+                    'status_code' => 403,
+
+                    'message' =>
+                    'Attendance opens at ' .
+                        $nextAttendanceOpen->format('h:i A') .
+                        '.',
+
+                ];
+            }
 
             return [
 
@@ -588,32 +540,249 @@ class AttendanceScanService
                 'status_code' => 403,
 
                 'message' =>
-
-                'Attendance opens at ' .
-
-                    $nextAttendanceOpen->format(
-                        'h:i A'
-                    ) .
-
-                    '.',
+                'All scheduled classes for today have finished.',
 
             ];
         }
 
         /*
         |--------------------------------------------------------------------------
-        | All Classes Finished
+        | Already Marked Schedules
+        |--------------------------------------------------------------------------
+        */
+
+        $markedScheduleIds = StudentAttendance::query()
+
+            ->where('student_id', $studentId)
+
+            ->whereIn('class_schedule_id', $openSchedules->pluck('id'))
+
+            ->pluck('class_schedule_id')
+
+            ->map(function ($id) {
+                return (int) $id;
+            })
+
+            ->all();
+
+        $isMarked = function ($schedule) use ($markedScheduleIds) {
+            return in_array((int) $schedule->id, $markedScheduleIds, true);
+        };
+
+        /*
+        |--------------------------------------------------------------------------
+        | Class Chosen By Staff
+        |--------------------------------------------------------------------------
+        */
+
+        if (!is_null($classScheduleId)) {
+
+            $chosen = $openSchedules->first(function ($schedule) use ($classScheduleId) {
+                return (int) $schedule->id === $classScheduleId;
+            });
+
+            if (!$chosen) {
+
+                return [
+
+                    'success' => false,
+
+                    'status_code' => 422,
+
+                    'message' =>
+                    'The selected class is not open for attendance now.',
+
+                ];
+            }
+
+            if ($isMarked($chosen)) {
+
+                return [
+
+                    'success' => false,
+
+                    'status_code' => 409,
+
+                    'message' =>
+                    'Attendance has already been marked.',
+
+                ];
+            }
+
+            return [
+
+                'success' => true,
+
+                'status_code' => 200,
+
+                'message' =>
+                'Attendance can be marked.',
+
+                'schedule' => $chosen,
+
+            ];
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Skip Classes Already Marked
+        |--------------------------------------------------------------------------
+        */
+
+        $unmarked = $openSchedules->reject($isMarked)->values();
+
+        if ($unmarked->isEmpty()) {
+
+            return [
+
+                'success' => false,
+
+                'status_code' => 409,
+
+                'message' =>
+                'Attendance has already been marked.',
+
+            ];
+        }
+
+        if ($unmarked->count() === 1) {
+
+            return [
+
+                'success' => true,
+
+                'status_code' => 200,
+
+                'message' =>
+                'Attendance can be marked.',
+
+                'schedule' => $unmarked->first(),
+
+            ];
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | More Than One Class Open - Staff Must Choose
         |--------------------------------------------------------------------------
         */
 
         return [
 
-            'success' => false,
+            'success' => true,
 
-            'status_code' => 403,
+            'status_code' => 200,
+
+            'requires_selection' => true,
 
             'message' =>
-            'All scheduled classes for today have finished.',
+            'This student has more than one class right now. Select the class.',
+
+            'options' => $openSchedules->map(function ($schedule) use ($isMarked) {
+
+                return array_merge(
+
+                    ['class_schedule_id' => $schedule->id],
+
+                    $this->schedulePayload($schedule),
+
+                    ['already_marked' => $isMarked($schedule)]
+
+                );
+            })->values()->all(),
+
+        ];
+    }
+
+    /**
+     * Student Payload
+     */
+    protected function studentPayload(Student $student): array
+    {
+        return [
+
+            'id' => $student->id,
+
+            'student_code' => $student->permanent_qr_active
+                ? $student->custom_id
+                : $student->temporary_qr_code,
+
+            'initial_name' => $student->initial_name,
+
+            'guardian_mobile' => $student->guardian_mobile,
+
+            'img_url' => $student->img_url,
+
+            'grade' => [
+                'id' => optional($student->grade)->id,
+                'grade_name' => optional($student->grade)->grade_name,
+            ],
+
+        ];
+    }
+
+    /**
+     * Schedule Payload
+     */
+    protected function schedulePayload(ClassSchedule $schedule): array
+    {
+        return [
+
+            'id' => $schedule->id,
+
+            'class_date' => $schedule->class_date->format('Y-m-d'),
+
+            'start_time' => $schedule->start_time,
+
+            'end_time' => $schedule->end_time,
+
+            'hall' => optional($schedule->hall)->hall_name,
+
+            'class' => [
+
+                'id' => optional($schedule->studentClass)->id,
+
+                'class_name' => optional($schedule->studentClass)->class_name,
+
+                'teacher' => optional(optional($schedule->studentClass)->teacher)->full_name,
+
+                'subject' => optional(optional($schedule->studentClass)->subject)->subject_name,
+
+                'grade' => optional(optional($schedule->studentClass)->grade)->grade_name,
+
+                'category' => optional(optional($schedule->classCategoryFee)->category)->category_name,
+
+            ],
+
+        ];
+    }
+
+    /**
+     * Selection Response (nothing marked, staff must choose a class)
+     */
+    protected function selection(
+        string $message,
+        Student $student,
+        array $options
+    ): array {
+
+        return [
+
+            'success' => true,
+
+            'status_code' => 200,
+
+            'requires_selection' => true,
+
+            'message' => $message,
+
+            'data' => [
+
+                'student' => $this->studentPayload($student),
+
+                'options' => $options,
+
+            ],
 
         ];
     }
