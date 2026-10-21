@@ -135,6 +135,7 @@ class NewAttendanceScanController extends Controller
 
             $data['enrollment'] = $studentInfo['enrollment'];
             $data['last_payment'] = $studentInfo['last_payment'];
+            $data['current_month_payment'] = $studentInfo['current_month_payment'];
             $data['tute'] = $studentInfo['tute'];
 
             $data['attendance'] = array_merge(

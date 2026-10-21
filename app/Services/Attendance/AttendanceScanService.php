@@ -241,6 +241,8 @@ class AttendanceScanService
 
                     'last_payment' => $studentInfo['last_payment'],
 
+                    'current_month_payment' => $studentInfo['current_month_payment'],
+
                     'attendance' => $studentInfo['attendance'],
 
                     'tute' => $studentInfo['tute'],
