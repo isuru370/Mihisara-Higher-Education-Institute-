@@ -227,7 +227,7 @@ class AttendanceScanService
             |--------------------------------------------------------------------------
             */
 
-            return $this->success(
+            $result = $this->success(
 
                 $attendanceWindow['message'],
 
@@ -248,6 +248,12 @@ class AttendanceScanService
                 ]
 
             );
+
+            // Models for callers that go on to mark attendance
+            // (not part of the JSON response).
+            $result['context'] = $context;
+
+            return $result;
         } catch (Throwable $e) {
 
             Log::error('Attendance Scan Failed', [
