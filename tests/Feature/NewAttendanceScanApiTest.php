@@ -153,6 +153,80 @@ class NewAttendanceScanApiTest extends TestCase
             ->assertJsonPath('message', 'Attendance opens at 03:30 PM.');
     }
 
+    public function test_current_month_paid_is_reported(): void
+    {
+        $this->pay($this->mathsScheduleId, '2026-10-01');
+
+        $this->clockAt('17:30');
+
+        $this->scan($this->mathsScheduleId)
+            ->assertOk()
+            ->assertJsonPath('data.current_month_payment.month', '2026-10')
+            ->assertJsonPath('data.current_month_payment.month_label', 'October 2026')
+            ->assertJsonPath('data.current_month_payment.is_paid', true)
+            ->assertJsonPath('data.current_month_payment.is_free_card', false);
+    }
+
+    public function test_payment_for_last_month_is_not_paid_for_this_month(): void
+    {
+        $this->pay($this->mathsScheduleId, '2026-09-01');
+
+        $this->clockAt('17:30');
+
+        $this->scan($this->mathsScheduleId)
+            ->assertOk()
+            ->assertJsonPath('data.last_payment.payment_month', '2026-09')
+            ->assertJsonPath('data.current_month_payment.is_paid', false);
+    }
+
+    public function test_payment_for_another_class_does_not_count(): void
+    {
+        $this->pay($this->historyScheduleId, '2026-10-01');
+
+        $this->clockAt('17:30');
+
+        $this->scan($this->mathsScheduleId)
+            ->assertOk()
+            ->assertJsonPath('data.current_month_payment.is_paid', false);
+    }
+
+    public function test_free_card_is_reported(): void
+    {
+        DB::table('student_class_enrollments')
+            ->where('student_class_id', $this->classIdFor($this->mathsScheduleId))
+            ->update(['is_free_card' => true]);
+
+        $this->clockAt('17:30');
+
+        $this->scan($this->mathsScheduleId)
+            ->assertOk()
+            ->assertJsonPath('data.current_month_payment.is_free_card', true)
+            ->assertJsonPath('data.current_month_payment.is_paid', false);
+    }
+
+    private function classIdFor(int $scheduleId): int
+    {
+        return (int) DB::table('class_schedules')->where('id', $scheduleId)->value('student_class_id');
+    }
+
+    private function pay(int $scheduleId, string $month): void
+    {
+        $enrollment = DB::table('student_class_enrollments')
+            ->where('student_class_id', $this->classIdFor($scheduleId))
+            ->first();
+
+        DB::table('payments')->insert([
+            'student_id' => $enrollment->student_id,
+            'student_class_enrollment_id' => $enrollment->id,
+            'amount' => 2500,
+            'paid_at' => $month . ' 10:00:00',
+            'payment_month' => $month,
+            'status' => 'completed',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     private function scan(?int $classScheduleId = null)
     {
         $body = ['code' => 'ST029', 'mark_method' => 'qr_mobile'];
