@@ -10,6 +10,7 @@ use App\Http\Controllers\API\ClassScheduleController;
 use App\Http\Controllers\API\GradeController;
 use App\Http\Controllers\API\InstituteHallController;
 use App\Http\Controllers\API\MobileDashboardController;
+use App\Http\Controllers\API\NewAttendanceScanController;
 use App\Http\Controllers\API\Notification\NotificationController;
 use App\Http\Controllers\API\QuickPhotoController;
 use App\Http\Controllers\API\StudentAttendanceController;
@@ -241,6 +242,12 @@ Route::middleware([
         '/attendance/scan',
         [StudentAttendanceScanController::class, 'scan']
     )->name('api.attendance.scan');
+
+    // Mobile app: scan + mark in one call (asks which class when two are open)
+    Route::post(
+        '/new-attendance/scan',
+        [NewAttendanceScanController::class, 'scan']
+    )->name('api.new-attendance.scan');
 
 
 
