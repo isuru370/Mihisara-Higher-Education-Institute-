@@ -34,6 +34,9 @@ class LoginController extends Controller
             ], 401);
         }
 
+        // The mobile app reads the role from user.user_type.code
+        $result['user']->loadMissing('userType:id,name,code');
+
         $token = $result['user']
             ->createToken('mobile-token')
             ->plainTextToken;

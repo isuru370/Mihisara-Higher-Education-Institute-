@@ -10,6 +10,8 @@ use App\Http\Controllers\API\ClassScheduleController;
 use App\Http\Controllers\API\GradeController;
 use App\Http\Controllers\API\InstituteHallController;
 use App\Http\Controllers\API\MobileDashboardController;
+use App\Http\Controllers\Admin\NewPayment\PaymentController as NewPaymentController;
+use App\Http\Controllers\API\NewAttendanceScanController;
 use App\Http\Controllers\API\Notification\NotificationController;
 use App\Http\Controllers\API\QuickPhotoController;
 use App\Http\Controllers\API\StudentAttendanceController;
@@ -74,6 +76,20 @@ Route::middleware([
         '/qr-code',
         [StudentCardRegisterController::class, 'searchQrcode']
     )->name('api.card.searchQrcode');
+
+    /*
+    |--------------------------------------------------------------------------
+    | New Payment (mobile app)
+    |--------------------------------------------------------------------------
+    | The app's Payment Scan / Collect Payment screens call these. They were
+    | only in routes/web.php (session login), so the app got 404.
+    */
+    Route::prefix('new-payment')
+        ->controller(NewPaymentController::class)
+        ->group(function () {
+            Route::post('/read', 'read')->name('api.new-payment.read');
+            Route::post('/bulk-pay', 'bulkPay')->name('api.new-payment.bulk-pay');
+        });
 
     Route::post('/re-assign', [
         StudentCardRegisterController::class,
@@ -241,6 +257,12 @@ Route::middleware([
         '/attendance/scan',
         [StudentAttendanceScanController::class, 'scan']
     )->name('api.attendance.scan');
+
+    // Mobile app: scan + mark in one call (asks which class when two are open)
+    Route::post(
+        '/new-attendance/scan',
+        [NewAttendanceScanController::class, 'scan']
+    )->name('api.new-attendance.scan');
 
 
 
