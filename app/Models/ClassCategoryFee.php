@@ -24,16 +24,48 @@ class ClassCategoryFee extends Model
 
     public function studentClass()
     {
-        return $this->belongsTo(StudentClass::class, 'student_class_id');
+        return $this->belongsTo(
+            StudentClass::class,
+            'student_class_id'
+        );
     }
 
     public function category()
     {
-        return $this->belongsTo(ClassCategory::class, 'class_category_id');
+        return $this->belongsTo(
+            ClassCategory::class,
+            'class_category_id'
+        );
     }
 
     public function schedules()
     {
-        return $this->hasMany(ClassSchedule::class, 'class_category_fee_id');
+        return $this->hasMany(
+            ClassSchedule::class,
+            'class_category_fee_id'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Fee Options
+    |--------------------------------------------------------------------------
+    */
+
+    public function feeOptions()
+    {
+        return $this->hasMany(
+            ClassCategoryFeeOption::class,
+            'class_category_fee_id'
+        );
+    }
+
+    public function activeFeeOptions()
+    {
+        return $this->hasMany(
+            ClassCategoryFeeOption::class,
+            'class_category_fee_id'
+        )
+            ->where('is_active', true);
     }
 }

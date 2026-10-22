@@ -13,9 +13,8 @@
             const loading = document.getElementById('payment-loading');
             const errorBox = document.getElementById('payment-error');
             const studentSection = document.getElementById('student-section');
-            const classesBody = document.getElementById('classes-table-body');
             const bulkButton = document.getElementById('bulk-payment-btn');
-            const selectAll = document.getElementById('select-all');
+            const defaultStudentImage = @json(asset('images/default-student.png'));
 
             /*
             |--------------------------------------------------------------------------
@@ -28,6 +27,8 @@
             let currentClasses = [];
             let selectedEnrollmentIds = [];
             let html5QrCode = null;
+            let isLoadingStudent = false;
+            let lastReceipt = null;
 
             /*
             |--------------------------------------------------------------------------
@@ -89,16 +90,6 @@
             |--------------------------------------------------------------------------
             | Class Fee Resolver
             |--------------------------------------------------------------------------
-            |
-            | IMPORTANT:
-            | PaymentDataBuilder returns:
-            |   class_fee
-            |   total_fee
-            |   final_fee
-            |
-            | For safety we also support:
-            |   fee.class_fee (legacy)
-            |
             */
 
             function resolveClassFee(item) {
@@ -135,18 +126,14 @@
                 try {
                     let normalized = String(value);
 
-                    // "2026-08" -> "2026-08-01"
                     if (/^\d{4}-\d{2}$/.test(normalized)) {
                         normalized = normalized + '-01';
                     }
 
-                    // ISO string like "2026-08-31T18:30:00.000000Z"
-                    // -> strip timezone, treat as local date
                     if (/T\d{2}:\d{2}/.test(normalized)) {
                         normalized = normalized.split('T')[0];
                     }
 
-                    // Now "2026-08-01" -> parse as local date
                     const parts = normalized.split('-');
 
                     if (parts.length === 3) {
@@ -176,7 +163,6 @@
                 try {
                     let normalized = String(value);
 
-                    // Strip time part if present
                     if (/T\d{2}:\d{2}/.test(normalized)) {
                         normalized = normalized.split('T')[0];
                     }
@@ -209,12 +195,10 @@
                 if (!value) return '-';
 
                 try {
-                    // Already HH:MM:SS
                     if (/^\d{2}:\d{2}(:\d{2})?$/.test(String(value))) {
                         return String(value);
                     }
 
-                    // Extract time from ISO string
                     if (/T\d{2}:\d{2}/.test(String(value))) {
                         const timePart = String(value).split('T')[1] || '';
                         const clean = timePart.replace(/Z$/, '').split('.')[0];
@@ -243,19 +227,199 @@
 
             /*
             |--------------------------------------------------------------------------
+            | Month Parser
+            |--------------------------------------------------------------------------
+            |
+            | Accepts:
+            |   "2026-06"
+            |   "2026-06-01"
+            |   "2026-06-15T00:00:00.000000Z"
+            |   "June 2026"
+            |
+            | Returns a Date object set to first day of that month
+            | or null if invalid.
+            |
+            */
+
+            function parseMonthToDate(value) {
+
+                if (!value) return null;
+
+                try {
+                    let normalized = String(value).trim();
+
+                    /*
+                    | "June 2026" → "2026-06-01"
+                    */
+                    const monthNames = [
+                        'january','february','march','april','may','june',
+                        'july','august','september','october','november','december'
+                    ];
+
+                    const nameMatch = normalized
+                        .toLowerCase()
+                        .match(/^([a-z]+)\s+(\d{4})$/);
+
+                    if (nameMatch) {
+                        const idx = monthNames.indexOf(nameMatch[1]);
+
+                        if (idx !== -1) {
+                            return new Date(
+                                parseInt(nameMatch[2]),
+                                idx,
+                                1
+                            );
+                        }
+                    }
+
+                    /*
+                    | Strip time part
+                    */
+                    if (/T\d{2}:\d{2}/.test(normalized)) {
+                        normalized = normalized.split('T')[0];
+                    }
+
+                    /*
+                    | "2026-06" → "2026-06-01"
+                    */
+                    if (/^\d{4}-\d{2}$/.test(normalized)) {
+                        normalized = normalized + '-01';
+                    }
+
+                    const parts = normalized.split('-');
+
+                    if (parts.length === 3) {
+                        const d = new Date(
+                            parseInt(parts[0]),
+                            parseInt(parts[1]) - 1,
+                            parseInt(parts[2])
+                        );
+
+                        if (!isNaN(d.getTime())) {
+                            return d;
+                        }
+                    }
+
+                    return null;
+
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Next Payment Month Resolver
+            |--------------------------------------------------------------------------
+            |
+            | Rules:
+            |   - If any selected enrollment has a previous payment
+            |       → use (latest paid month + 1)
+            |   - Otherwise → use current month
+            |
+            */
+
+            function resolveNextPaymentMonth(enrollmentIds) {
+
+                let latestPaid = null;
+
+                (enrollmentIds || []).forEach(function(id) {
+
+                    const item = currentClasses.find(function(classItem) {
+                        return Number(classItem.enrollment_id) === Number(id);
+                    });
+
+                    if (!item || !item.last_payment) {
+                        return;
+                    }
+
+                    const lastMonth =
+                        item.last_payment.payment_month ||
+                        item.last_payment.payment_month_name ||
+                        null;
+
+                    if (!lastMonth) {
+                        return;
+                    }
+
+                    const parsed = parseMonthToDate(lastMonth);
+
+                    if (!parsed) {
+                        return;
+                    }
+
+                    if (!latestPaid || parsed > latestPaid) {
+                        latestPaid = parsed;
+                    }
+                });
+
+                /*
+                |--------------------------------------------------------------------------
+                | Compute target month
+                |--------------------------------------------------------------------------
+                */
+
+                if (latestPaid) {
+                    return new Date(
+                        latestPaid.getFullYear(),
+                        latestPaid.getMonth() + 1,
+                        1
+                    );
+                }
+
+                const now = new Date();
+
+                return new Date(now.getFullYear(), now.getMonth(), 1);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Set Payment Month (default = next month after last payment)
+            |--------------------------------------------------------------------------
+            */
+
+            function setNextPaymentMonth(enrollmentIds) {
+
+                const monthInput =
+                    document.getElementById('payment-month');
+
+                if (!monthInput) {
+                    console.error('Payment month input not found.');
+                    return;
+                }
+
+                const target = resolveNextPaymentMonth(enrollmentIds);
+
+                const year =
+                    target.getFullYear();
+
+                const month =
+                    String(
+                        target.getMonth() + 1
+                    ).padStart(2, '0');
+
+                monthInput.value = `${year}-${month}`;
+            }
+            /*
+            |--------------------------------------------------------------------------
             | Read Student
             |--------------------------------------------------------------------------
             */
 
-            async function readStudent(code, markMethod) {
+            async function readStudent(code, markMethod, options) {
 
+                options = options || {};
                 code = String(code || '').trim();
 
                 if (!code) {
                     showError('Please enter Student ID or scan QR.');
+                    focusSearch();
                     return;
                 }
 
+                if (isLoadingStudent) return;
+
+                isLoadingStudent = true;
                 showLoading();
                 clearError();
                 currentMarkMethod = markMethod;
@@ -275,36 +439,103 @@
                         })
                     });
 
-                    const result = await response.json();
+                    let result = {};
+                    try {
+                        result = await response.json();
+                    } catch (e) {
+                        throw new Error('Unexpected server response (' + response.status + ').');
+                    }
 
                     if (!response.ok || result.status !== 'success') {
-                        throw new Error(result.message || 'Student not found.');
+                        const firstError = result.errors ? Object.values(result.errors).flat()[0] : null;
+                        throw new Error(firstError || result.message || 'Student not found.');
                     }
 
                     currentStudent = result.data.student;
                     currentClasses = result.data.classes || [];
 
-                    renderStudent();
-                    renderClasses();
+                    const input = document.getElementById('manual-code');
+                    if (input && currentStudent?.custom_id) input.value = currentStudent.custom_id;
 
-                    if (markMethod === 'qr_web') {
-                        const firstUnpaid = currentClasses.find(function(item) {
-                            return item.payment_status !== 'paid';
+                    renderClasses();
+                    renderStudent();
+
+                    // QR scan with exactly one unpaid class: open the payment straight away.
+                    if (markMethod === 'qr_web' && options.autoOpen !== false) {
+                        const unpaid = currentClasses.filter(function(item) {
+                            return isPayable(item) && item.payment_status !== 'paid';
                         });
-                        if (firstUnpaid) {
+                        if (unpaid.length === 1) {
+                            selectedEnrollmentIds = [Number(unpaid[0].enrollment_id)];
+                            syncCardSelection();
                             setTimeout(function() {
-                                openPaymentModal([Number(firstUnpaid.enrollment_id)]);
+                                openPaymentModal(selectedEnrollmentIds.slice());
                             }, 200);
+                        } else if (unpaid.length === 0 && currentClasses.length) {
+                            toast('All classes are paid for this month.', 'success');
                         }
                     }
 
                 } catch (error) {
+                    currentStudent = null;
+                    currentClasses = [];
+                    selectedEnrollmentIds = [];
+                    updateBulkButton();
                     if (studentSection) studentSection.classList.add('d-none');
                     showError(error.message);
+                    focusSearch();
                 } finally {
+                    isLoadingStudent = false;
                     hideLoading();
                 }
 
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Small UI helpers
+            |--------------------------------------------------------------------------
+            */
+
+            function toast(message, type) {
+                const el = document.getElementById('np-toast');
+                const body = document.getElementById('np-toast-body');
+                if (!el || !body) return;
+
+                el.classList.remove('text-bg-success', 'text-bg-danger', 'text-bg-warning', 'text-bg-dark');
+                el.classList.add('text-bg-' + (type || 'dark'));
+                body.textContent = message;
+                bootstrap.Toast.getOrCreateInstance(el, { delay: 3500 }).show();
+            }
+
+            function isModalOpen(id) {
+                const el = document.getElementById(id);
+                return !!(el && el.classList.contains('show'));
+            }
+
+            function anyModalOpen() {
+                return !!document.querySelector('.modal.show');
+            }
+
+            function focusSearch(selectText) {
+                const input = document.getElementById('manual-code');
+                if (!input) return;
+                input.focus();
+                if (selectText !== false) input.select();
+            }
+
+            function isFreeCard(item) {
+                return item && (item.is_free_card === true || item.is_free_card === 1 || item.is_free_card === '1');
+            }
+
+            function isPayable(item) {
+                return !!item && !isFreeCard(item) && resolveClassFee(item) > 0;
+            }
+
+            function findClass(id) {
+                return currentClasses.find(function(item) {
+                    return Number(item.enrollment_id) === Number(id);
+                });
             }
 
             /*
@@ -319,818 +550,426 @@
 
                 const student = currentStudent;
 
-                const nameEl = document.getElementById('student-name');
-                const idEl = document.getElementById('student-custom-id');
-                const mobileEl = document.getElementById('student-mobile');
-                const guardianEl = document.getElementById('student-guardian');
-                const imageEl = document.getElementById('student-image');
+                const set = function(id, value) {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = value;
+                };
 
-                if (nameEl) nameEl.textContent = student.initial_name || student.full_name || '-';
-                if (idEl) idEl.textContent = student.custom_id || '-';
-                if (mobileEl) mobileEl.textContent = student.mobile || '-';
-                if (guardianEl) guardianEl.textContent = student.guardian_name || student.guardian_mobile || '-';
+                set('student-name', student.initial_name || student.full_name || '-');
+                set('student-custom-id', student.custom_id || '-');
+                set('student-mobile', student.mobile || '-');
+                set('student-guardian', student.guardian_name || student.guardian_mobile || '-');
+
+                const imageEl = document.getElementById('student-image');
                 if (imageEl) {
-                    imageEl.src = student.image_url || '{{ asset('images/default-student.png') }}';
+                    imageEl.src = student.image_url || defaultStudentImage;
                 }
 
-                if (studentSection) studentSection.classList.remove('d-none');
+                const unpaid = currentClasses.filter(function(item) {
+                    return isPayable(item) && item.payment_status !== 'paid';
+                });
 
+                set('student-unpaid-count', String(unpaid.length));
+                set('student-due-total', formatMoney(unpaid.reduce(function(sum, item) {
+                    return sum + resolveClassFee(item);
+                }, 0)));
+
+                if (studentSection) studentSection.classList.remove('d-none');
             }
 
             /*
             |--------------------------------------------------------------------------
-            | Render Classes
+            | Render Classes (cards with number keys)
             |--------------------------------------------------------------------------
             */
 
             function renderClasses() {
 
-                const container =
-                    document.getElementById(
-                        'classes-card-container'
-                    );
-
-                if (!container) {
-
-                    console.error(
-                        'Classes card container not found.'
-                    );
-
-                    return;
-                }
-
+                const container = document.getElementById('classes-card-container');
+                if (!container) return;
 
                 container.innerHTML = '';
-
                 selectedEnrollmentIds = [];
-
-                if (selectAll) {
-                    selectAll.checked = false;
-                }
-
                 updateBulkButton();
 
-
-                /*
-                |--------------------------------------------------------------------------
-                | No Classes
-                |--------------------------------------------------------------------------
-                */
-
                 if (!currentClasses.length) {
-
                     container.innerHTML = `
-
-            <div class="col-12">
-
-                <div class="classes-empty-state">
-
-                    <div class="classes-empty-icon">
-
-                        <i class="bi bi-journal-x"></i>
-
-                    </div>
-
-                    <div class="fw-semibold text-muted">
-                        No active classes found
-                    </div>
-
-                    <small class="text-muted">
-                        This student has no active class enrollments.
-                    </small>
-
-                </div>
-
-            </div>
-
-        `;
-
+                        <div class="col-12">
+                            <div class="classes-empty-state">
+                                <div class="classes-empty-icon"><i class="bi bi-journal-x"></i></div>
+                                <div class="fw-semibold text-muted">No active classes found</div>
+                                <small class="text-muted">This student has no active class enrollments.</small>
+                            </div>
+                        </div>`;
                     return;
                 }
 
+                currentClasses.forEach(function(item, index) {
 
-                /*
-                |--------------------------------------------------------------------------
-                | Render Cards
-                |--------------------------------------------------------------------------
-                */
+                    const number = index + 1;
+                    const freeCard = isFreeCard(item);
+                    const payable = isPayable(item);
+                    const status = freeCard ? 'free card' : (item.payment_status || 'unpaid');
 
-                currentClasses.forEach(function(item) {
+                    const statusClass = freeCard ? 'payment-status-free' :
+                        (status === 'paid' ? 'payment-status-paid' : 'payment-status-unpaid');
 
-                    const status =
-                        item.payment_status || 'unpaid';
+                    const last = item.last_payment;
 
-
-                    const statusClass =
-                        status === 'paid' ?
-                        'payment-status-paid' :
-                        'payment-status-unpaid';
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Last Payment
-                    |--------------------------------------------------------------------------
-                    */
-
-                    let lastPaymentHtml = '';
-
-
-                    if (item.last_payment) {
-
-                        const last =
-                            item.last_payment;
-
-
-                        lastPaymentHtml = `
-
-                <div class="last-payment-box">
-
-                    <div class="last-payment-header">
-
-                        <span class="last-payment-label">
-
-                            <i class="bi bi-receipt me-1"></i>
-
-                            Last Payment
-
-                        </span>
-
-                    </div>
-
-
-                    <div class="last-payment-content">
-
-                        <div>
-
-                            <div class="small text-muted">
-                                Month
+                    const lastPaymentHtml = last ? `
+                        <div class="last-payment-box">
+                            <div class="last-payment-header">
+                                <span class="last-payment-label"><i class="bi bi-receipt me-1"></i>Last Payment</span>
                             </div>
-
-                            <strong>
-                                ${escapeHtml(
-                                    last.payment_month_name ||
-                                    last.payment_month ||
-                                    '-'
-                                )}
-                            </strong>
-
-                        </div>
-
-
-                        <div class="text-end">
-
-                            <div class="small text-muted">
-                                Amount
+                            <div class="last-payment-content">
+                                <div>
+                                    <div class="small text-muted">Month</div>
+                                    <strong>${escapeHtml(last.payment_month_name || last.payment_month || '-')}</strong>
+                                </div>
+                                <div class="text-end">
+                                    <div class="small text-muted">Amount</div>
+                                    <strong class="text-success">Rs. ${formatMoney(last.amount)}</strong>
+                                </div>
                             </div>
+                            <div class="last-payment-receipt"><i class="bi bi-upc-scan me-1"></i>Receipt: ${escapeHtml(last.receipt_number || '-')}</div>
+                        </div>` : `
+                        <div class="last-payment-box last-payment-empty">
+                            <span class="last-payment-label"><i class="bi bi-receipt me-1"></i>Last Payment</span>
+                            <div class="small text-muted mt-1">No payment recorded yet</div>
+                        </div>`;
 
-                            <strong class="text-success">
+                    const feeOption = item.fee_option && item.fee_option.label ?
+                        `<div class="small text-muted">${escapeHtml(item.fee_option.label)}</div>` : '';
 
-                                Rs.
-                                ${formatMoney(
-                                    last.amount
-                                )}
+                    container.insertAdjacentHTML('beforeend', `
+                        <div class="col-12 col-md-6 col-xl-4">
+                            <div class="class-payment-card np-card ${payable ? '' : 'np-card-disabled'}"
+                                data-enrollment-id="${item.enrollment_id}" ${payable ? 'tabindex="0" role="button"' : ''}>
 
-                            </strong>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="last-payment-receipt">
-
-                        <i class="bi bi-upc-scan me-1"></i>
-
-                        Receipt:
-                        ${escapeHtml(
-                            last.receipt_number || '-'
-                        )}
-
-                    </div>
-
-                </div>
-
-            `;
-
-                    } else {
-
-                        lastPaymentHtml = `
-
-                <div class="last-payment-box last-payment-empty">
-
-                    <div>
-
-                        <span class="last-payment-label">
-
-                            <i class="bi bi-receipt me-1"></i>
-
-                            Last Payment
-
-                        </span>
-
-                    </div>
-
-
-                    <div class="small text-muted mt-1">
-
-                        No payment recorded yet
-
-                    </div>
-
-                </div>
-
-            `;
-
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Card
-                    |--------------------------------------------------------------------------
-                    */
-
-                    container.insertAdjacentHTML(
-                        'beforeend',
-                        `
-
-            <div class="col-12 col-md-6 col-xl-4">
-
-                <div class="class-payment-card">
-
-
-                    {{-- =====================================================
-                         Card Header
-                         ===================================================== --}}
-                    <div class="class-payment-card-header">
-
-                        <div class="d-flex align-items-start gap-3">
-
-                            {{-- Checkbox --}}
-                            <div class="pt-1">
-
-                                <input
-                                    type="checkbox"
-                                    class="form-check-input class-checkbox"
-                                    value="${item.enrollment_id}"
-                                >
-
-                            </div>
-
-
-                            {{-- Class Info --}}
-                            <div class="flex-grow-1">
-
-                                <div class="d-flex justify-content-between align-items-start gap-2">
-
-                                    <div>
-
-                                        <h6 class="class-payment-title mb-1">
-
-                                            ${escapeHtml(
-                                                item.class_name || '-'
-                                            )}
-
-                                        </h6>
-
-
-                                        <div class="class-payment-subject">
-
-                                            <i class="bi bi-book me-1"></i>
-
-                                            ${escapeHtml(
-                                                item.subject || '-'
-                                            )}
-
+                                <div class="class-payment-card-header">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <div class="np-card-number">${number <= 9 ? number : ''}</div>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                                <div>
+                                                    <h6 class="class-payment-title mb-1">${escapeHtml(item.class_name || '-')}</h6>
+                                                    <div class="class-payment-subject"><i class="bi bi-book me-1"></i>${escapeHtml(item.subject || '-')}</div>
+                                                </div>
+                                                <span class="${statusClass}">${escapeHtml(status.toUpperCase())}</span>
+                                            </div>
                                         </div>
-
+                                        <input type="checkbox" class="form-check-input class-checkbox np-card-check"
+                                            value="${item.enrollment_id}" ${payable ? '' : 'disabled'} tabindex="-1"
+                                            aria-label="Select ${escapeHtml(item.class_name || 'class')}">
                                     </div>
-
-
-                                    {{-- Status --}}
-                                    <span class="${statusClass}">
-
-                                        ${escapeHtml(
-                                            status.toUpperCase()
-                                        )}
-
-                                    </span>
-
                                 </div>
 
+                                <div class="class-payment-details">
+                                    <div class="class-payment-detail">
+                                        <div class="class-payment-detail-label"><i class="bi bi-tag me-1"></i>Category</div>
+                                        <div class="class-payment-detail-value">${escapeHtml(item.category_name || '-')}</div>
+                                    </div>
+                                    <div class="class-payment-detail">
+                                        <div class="class-payment-detail-label"><i class="bi bi-mortarboard me-1"></i>Grade</div>
+                                        <div class="class-payment-detail-value">${escapeHtml(item.grade || '-')}</div>
+                                    </div>
+                                    <div class="class-payment-detail">
+                                        <div class="class-payment-detail-label"><i class="bi bi-person-badge me-1"></i>Teacher</div>
+                                        <div class="class-payment-detail-value">${escapeHtml(item.teacher_initials || '-')}</div>
+                                    </div>
+                                    <div class="class-payment-detail">
+                                        <div class="class-payment-detail-label"><i class="bi bi-cash-stack me-1"></i>Monthly Fee</div>
+                                        <div>
+                                            <div class="class-payment-fee">${freeCard ? 'Free card' : 'Rs. ' + formatMoney(resolveClassFee(item))}</div>
+                                            ${feeOption}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                ${lastPaymentHtml}
+
+                                <div class="class-payment-card-footer">
+                                    ${payable ? `
+                                        <button type="button" class="btn btn-primary btn-lg w-100 fw-semibold pay-single-btn"
+                                            data-enrollment-id="${item.enrollment_id}">
+                                            <i class="bi bi-credit-card me-1"></i>Pay this class
+                                            ${number <= 9 ? `<kbd class="np-kbd-light ms-1">${number}</kbd> + <kbd class="np-kbd-light">F8</kbd>` : ''}
+                                        </button>` : `
+                                        <div class="w-100 text-center small text-muted py-2">
+                                            ${freeCard ? '<i class="bi bi-gift me-1"></i>Free card &ndash; no payment needed' : 'No fee set for this class'}
+                                        </div>`}
+                                </div>
                             </div>
-
-                        </div>
-
-                    </div>
-
-
-                    {{-- =====================================================
-                         Class Details
-                         ===================================================== --}}
-                    <div class="class-payment-details">
-
-
-                        {{-- Category --}}
-                        <div class="class-payment-detail">
-
-                            <div class="class-payment-detail-label">
-
-                                <i class="bi bi-tag me-1"></i>
-
-                                Category
-
-                            </div>
-
-                            <div class="class-payment-detail-value">
-
-                                ${escapeHtml(
-                                    item.category_name || '-'
-                                )}
-
-                            </div>
-
-                        </div>
-
-
-                        {{-- Grade --}}
-                        <div class="class-payment-detail">
-
-                            <div class="class-payment-detail-label">
-
-                                <i class="bi bi-mortarboard me-1"></i>
-
-                                Grade
-
-                            </div>
-
-                            <div class="class-payment-detail-value">
-
-                                ${escapeHtml(
-                                    item.grade || '-'
-                                )}
-
-                            </div>
-
-                        </div>
-
-
-                        {{-- Teacher --}}
-                        <div class="class-payment-detail">
-
-                            <div class="class-payment-detail-label">
-
-                                <i class="bi bi-person-badge me-1"></i>
-
-                                Teacher
-
-                            </div>
-
-                            <div class="class-payment-detail-value">
-
-                                ${escapeHtml(
-                                    item.teacher_initials || '-'
-                                )}
-
-                            </div>
-
-                        </div>
-
-
-                        {{-- Fee (Class Fee only - Hall Fee ignored) --}}
-                        <div class="class-payment-detail">
-
-                            <div class="class-payment-detail-label">
-
-                                <i class="bi bi-cash-stack me-1"></i>
-
-                                Monthly Fee
-
-                            </div>
-
-                            <div class="class-payment-fee">
-                                Rs. ${formatMoney(resolveClassFee(item))}
-                            </div>
-
-                        </div>
-
-                    </div>
-
-
-                    {{-- =====================================================
-                         Last Payment
-                         ===================================================== --}}
-                    ${lastPaymentHtml}
-
-
-                    {{-- =====================================================
-                         Footer
-                         ===================================================== --}}
-                    <div class="class-payment-card-footer">
-
-                        <div class="small text-muted">
-
-                            ${status === 'paid'
-                                ? '<i class="bi bi-check-circle-fill text-success me-1"></i> Payment completed'
-                                : '<i class="bi bi-exclamation-circle text-warning me-1"></i> Payment pending'
-                            }
-
-                        </div>
-
-
-                        <button
-                            type="button"
-                            class="btn btn-primary btn-sm pay-single-btn"
-                            data-enrollment-id="${item.enrollment_id}"
-                        >
-
-                            <i class="bi bi-credit-card me-1"></i>
-
-                            Pay
-
-                        </button>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            `
-                    );
-
+                        </div>`);
                 });
 
+                syncCardSelection();
             }
 
             /*
             |--------------------------------------------------------------------------
-            | Single Pay
+            | Selection
             |--------------------------------------------------------------------------
             */
 
-            document.addEventListener('click', function(event) {
+            function toggleClass(enrollmentId, force) {
+                const item = findClass(enrollmentId);
+                if (!isPayable(item)) return;
 
-                const button = event.target.closest('.pay-single-btn');
-                if (!button) return;
+                const id = Number(enrollmentId);
+                const selected = selectedEnrollmentIds.includes(id);
+                const shouldSelect = typeof force === 'boolean' ? force : !selected;
 
-                const enrollmentId = Number(button.dataset.enrollmentId);
-                openPaymentModal([enrollmentId]);
-
-            });
-
-            /*
-            |--------------------------------------------------------------------------
-            | Checkbox
-            |--------------------------------------------------------------------------
-            */
-
-            document.addEventListener('change', function(event) {
-
-                if (!event.target.classList.contains('class-checkbox')) return;
-                updateSelectedEnrollments();
-
-            });
-
-            if (selectAll) {
-                selectAll.addEventListener('change', function() {
-                    document.querySelectorAll('.class-checkbox').forEach(function(checkbox) {
-                        checkbox.checked = selectAll.checked;
+                if (shouldSelect && !selected) selectedEnrollmentIds.push(id);
+                if (!shouldSelect && selected) {
+                    selectedEnrollmentIds = selectedEnrollmentIds.filter(function(x) {
+                        return x !== id;
                     });
-                    updateSelectedEnrollments();
-                });
+                }
+
+                syncCardSelection();
             }
 
-            function updateSelectedEnrollments() {
-
-                selectedEnrollmentIds = Array.from(
-                    document.querySelectorAll('.class-checkbox:checked')
-                ).map(function(checkbox) {
-                    return Number(checkbox.value);
+            function selectAllUnpaid() {
+                const unpaid = currentClasses.filter(function(item) {
+                    return isPayable(item) && item.payment_status !== 'paid';
+                }).map(function(item) {
+                    return Number(item.enrollment_id);
                 });
 
-                updateBulkButton();
+                const allSelected = unpaid.length > 0 && unpaid.every(function(id) {
+                    return selectedEnrollmentIds.includes(id);
+                });
 
+                selectedEnrollmentIds = allSelected ? [] : unpaid;
+
+                if (!unpaid.length) {
+                    toast('All classes are already paid for this month.', 'success');
+                }
+
+                syncCardSelection();
+            }
+
+            function clearSelection() {
+                selectedEnrollmentIds = [];
+                syncCardSelection();
+            }
+
+            function syncCardSelection() {
+                document.querySelectorAll('.np-card').forEach(function(card) {
+                    const id = Number(card.dataset.enrollmentId);
+                    const selected = selectedEnrollmentIds.includes(id);
+                    card.classList.toggle('np-card-selected', selected);
+                    const checkbox = card.querySelector('.class-checkbox');
+                    if (checkbox) checkbox.checked = selected;
+                });
+                updateBulkButton();
             }
 
             function updateBulkButton() {
 
-                if (!bulkButton) return;
+                const bar = document.getElementById('np-pay-bar');
+                const count = document.getElementById('np-selected-count');
+                const total = document.getElementById('np-selected-total');
 
-                bulkButton.disabled = selectedEnrollmentIds.length === 0;
+                const sum = selectedEnrollmentIds.reduce(function(acc, id) {
+                    return acc + resolveClassFee(findClass(id));
+                }, 0);
 
-                bulkButton.innerHTML = selectedEnrollmentIds.length > 1 ?
-                    `<i class="bi bi-credit-card me-1"></i> Pay Selected (${selectedEnrollmentIds.length})` :
-                    `<i class="bi bi-credit-card me-1"></i> Pay Selected`;
+                if (count) count.textContent = String(selectedEnrollmentIds.length);
+                if (total) total.textContent = formatMoney(sum);
+                if (bar) bar.classList.toggle('d-none', selectedEnrollmentIds.length === 0);
+                if (bulkButton) bulkButton.disabled = selectedEnrollmentIds.length === 0;
 
+                document.body.classList.toggle('np-has-pay-bar', selectedEnrollmentIds.length > 0);
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | Bulk Button
-            |--------------------------------------------------------------------------
-            */
-
-            if (bulkButton) {
-                bulkButton.addEventListener('click', function() {
-                    if (!selectedEnrollmentIds.length) return;
-                    openPaymentModal(selectedEnrollmentIds);
-                });
-            }
-
-            function openPaymentModal(enrollmentIds) {
-
-                if (!enrollmentIds || !enrollmentIds.length) {
+            function paySelected() {
+                if (!currentStudent) {
+                    focusSearch();
                     return;
                 }
 
-                const firstEnrollment = currentClasses.find(function(item) {
-                    return Number(item.enrollment_id) === Number(enrollmentIds[0]);
+                // Nothing selected but exactly one unpaid class: pay that one.
+                if (!selectedEnrollmentIds.length) {
+                    const unpaid = currentClasses.filter(function(item) {
+                        return isPayable(item) && item.payment_status !== 'paid';
+                    });
+
+                    if (unpaid.length === 1) {
+                        selectedEnrollmentIds = [Number(unpaid[0].enrollment_id)];
+                        syncCardSelection();
+                    } else {
+                        toast('Select a class first (press its number, or A for all unpaid).', 'warning');
+                        return;
+                    }
+                }
+
+                openPaymentModal(selectedEnrollmentIds.slice());
+            }
+
+            // Card click toggles selection; the Pay button pays only that class.
+            document.addEventListener('click', function(event) {
+
+                const payButton = event.target.closest('.pay-single-btn');
+                if (payButton) {
+                    const id = Number(payButton.dataset.enrollmentId);
+                    selectedEnrollmentIds = [id];
+                    syncCardSelection();
+                    openPaymentModal([id]);
+                    return;
+                }
+
+                const card = event.target.closest('.np-card');
+                if (card && !card.classList.contains('np-card-disabled')) {
+                    toggleClass(card.dataset.enrollmentId);
+                }
+            });
+
+            document.addEventListener('keydown', function(event) {
+                const card = event.target.closest && event.target.closest('.np-card');
+                if (card && (event.key === ' ' || event.key === 'Enter') && !event.target.closest('.pay-single-btn')) {
+                    event.preventDefault();
+                    toggleClass(card.dataset.enrollmentId);
+                }
+            });
+
+            const selectUnpaidBtn = document.getElementById('select-unpaid-btn');
+            if (selectUnpaidBtn) selectUnpaidBtn.addEventListener('click', selectAllUnpaid);
+
+            const clearSelectionBtn = document.getElementById('clear-selection-btn');
+            if (clearSelectionBtn) clearSelectionBtn.addEventListener('click', clearSelection);
+
+            if (bulkButton) bulkButton.addEventListener('click', paySelected);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Next student
+            |--------------------------------------------------------------------------
+            */
+
+            function resetForNextStudent() {
+                currentStudent = null;
+                currentClasses = [];
+                selectedEnrollmentIds = [];
+                updateBulkButton();
+                clearError();
+
+                if (studentSection) studentSection.classList.add('d-none');
+
+                const input = document.getElementById('manual-code');
+                if (input) input.value = '';
+
+                focusSearch();
+            }
+
+            const nextStudentBtn = document.getElementById('next-student-btn');
+            if (nextStudentBtn) nextStudentBtn.addEventListener('click', resetForNextStudent);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Payment Modal
+            |--------------------------------------------------------------------------
+            */
+
+            function setPaymentMethod(method) {
+                const hidden = document.getElementById('payment-method');
+                if (hidden) hidden.value = method;
+
+                document.querySelectorAll('#payment-method-buttons .np-method').forEach(function(btn) {
+                    btn.classList.toggle('active', btn.dataset.method === method);
+                });
+            }
+
+            document.querySelectorAll('#payment-method-buttons .np-method').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    setPaymentMethod(btn.dataset.method);
+                });
+            });
+
+            function modalError(message) {
+                const box = document.getElementById('payment-modal-error');
+                if (!box) return;
+                box.textContent = message || '';
+                box.classList.toggle('d-none', !message);
+            }
+
+            function recalcAmount() {
+                const feeInput = document.getElementById('payment-final-fee');
+                const discountInput = document.getElementById('payment-discount');
+                const amountInput = document.getElementById('payment-amount');
+                const display = document.getElementById('modal-amount-display');
+
+                const fee = Number(String(feeInput?.value || '0').replace(/,/g, '')) || 0;
+                let discount = Number(discountInput?.value || 0) || 0;
+
+                if (discount < 0) discount = 0;
+                if (discount > fee) discount = fee;
+
+                const amount = Math.max(fee - discount, 0);
+
+                if (amountInput) amountInput.value = amount.toFixed(2);
+                if (display) display.textContent = formatMoney(amount);
+            }
+
+            const discountInputEl = document.getElementById('payment-discount');
+            if (discountInputEl) discountInputEl.addEventListener('input', recalcAmount);
+
+            function openPaymentModal(enrollmentIds) {
+
+                const ids = (enrollmentIds || []).filter(function(id) {
+                    return isPayable(findClass(id));
                 });
 
-                if (!firstEnrollment) {
+                if (!ids.length) {
+                    toast('Nothing to pay for the selected class.', 'warning');
                     return;
                 }
 
                 const modalElement = document.getElementById('paymentModal');
-
-                if (!modalElement) {
-                    console.error('Payment modal not found.');
-                    return;
-                }
-
-                const form = modalElement.querySelector('#payment-form');
-
-                if (!form) {
-                    console.error('Payment form not found.');
-                    return;
-                }
-
-                // Hidden fields
-                const paymentCode =
-                    form.querySelector('#payment-code');
-
-                const paymentEnrollmentId =
-                    form.querySelector('#payment-enrollment-id');
-
-                const paymentMarkMethod =
-                    form.querySelector('#payment-mark-method');
-
-                if (!paymentCode || !paymentEnrollmentId || !paymentMarkMethod) {
-                    console.error('Payment hidden fields are missing.');
-                    return;
-                }
-
-                paymentCode.value =
-                    currentStudent?.custom_id || '';
-
-                paymentEnrollmentId.value =
-                    enrollmentIds.join(',');
-
-                paymentMarkMethod.value =
-                    currentMarkMethod || 'manual_web';
-
-
-                // =====================================================
-                // Class / Category
-                // =====================================================
-
-                let infoBox =
-                    form.querySelector('[data-payment-class-info]');
-
-                if (!infoBox) {
-
-                    infoBox = document.createElement('div');
-
-                    infoBox.setAttribute(
-                        'data-payment-class-info',
-                        'true'
-                    );
-
-                    infoBox.className =
-                        'alert alert-light border mb-3';
-
-                    infoBox.innerHTML = `
-            <div class="row">
-
-                <div class="col-md-6">
-
-                    <small class="text-muted d-block">
-                        Class
-                    </small>
-
-                    <div
-                        data-payment-class-name
-                        class="fw-semibold"
-                    >
-                        -
-                    </div>
-
-                </div>
-
-                <div class="col-md-6">
-
-                    <small class="text-muted d-block">
-                        Category
-                    </small>
-
-                    <div
-                        data-payment-category-name
-                        class="fw-semibold"
-                    >
-                        -
-                    </div>
-
-                </div>
-
-            </div>
-        `;
-
-                    const firstRow =
-                        form.querySelector('.row.g-3');
-
-                    if (firstRow) {
-                        form.insertBefore(infoBox, firstRow);
-                    } else {
-                        form.prepend(infoBox);
-                    }
-                }
-
-
-                const classNameElement =
-                    infoBox.querySelector(
-                        '[data-payment-class-name]'
-                    );
-
-                const categoryNameElement =
-                    infoBox.querySelector(
-                        '[data-payment-category-name]'
-                    );
-
-                if (classNameElement) {
-                    classNameElement.textContent =
-                        enrollmentIds.length > 1 ?
-                        `${enrollmentIds.length} Classes Selected` :
-                        firstEnrollment.class_name || '-';
-                }
-
-                if (categoryNameElement) {
-                    categoryNameElement.textContent =
-                        enrollmentIds.length > 1 ?
-                        'Bulk Payment' :
-                        firstEnrollment.category_name || '-';
-                }
-
-
-                // =====================================================
-                // IMPORTANT: Calculate Class Fee only
-                // (Hall Fee intentionally ignored on this page)
-                // =====================================================
-
-                const feeSummary = enrollmentIds.reduce(
-                    function(summary, id) {
-
-                        const item = currentClasses.find(function(classItem) {
-                            return Number(classItem.enrollment_id) === Number(id);
-                        });
-
-                        if (!item) {
-                            return summary;
-                        }
-
-                        const classFee = resolveClassFee(item);
-
-                        summary.classFee += classFee;
-                        summary.totalFee += classFee;
-
-                        return summary;
-
-                    },
-                    {
-                        classFee: 0,
-                        totalFee: 0
-                    }
-                );
-
-
-                // =====================================================
-                // Payment Inputs
-                // =====================================================
-
-                const classFeeInput =
-                    form.querySelector('#payment-class-fee');
-
-                const hallFeeInput =
-                    form.querySelector('#payment-hall-fee');
-
-                const finalFeeInput =
-                    form.querySelector('#payment-final-fee');
-
-                const discountInput =
-                    form.querySelector('#payment-discount');
-
-                const amountInput =
-                    form.querySelector('#payment-amount');
-
-                const noteInput =
-                    form.querySelector('#payment-note');
-
-
-                if (!finalFeeInput ||
-                    !discountInput ||
-                    !amountInput ||
-                    !noteInput) {
-
-                    console.error(
-                        'Payment input fields are missing.'
-                    );
-
-                    return;
-                }
-
-
-                // =====================================================
-                // Set Fee Values (Class Fee only)
-                // =====================================================
-
-                if (classFeeInput) {
-                    classFeeInput.value =
-                        feeSummary.classFee.toFixed(2);
-                }
-
-                // Hall Fee is intentionally ignored on New Payment page.
-                if (hallFeeInput) {
-                    hallFeeInput.value = '0.00';
-                }
-
-                finalFeeInput.value =
-                    feeSummary.totalFee.toFixed(2);
-
-                discountInput.value = '0';
-
-                amountInput.value =
-                    feeSummary.totalFee.toFixed(2);
-
-                noteInput.value = '';
-
-
-                // =====================================================
-                // Current Month
-                // =====================================================
-
-                setCurrentMonth();
-
-
-                // =====================================================
-                // Show Modal
-                // =====================================================
-
-                bootstrap.Modal
-                    .getOrCreateInstance(modalElement)
-                    .show();
+                if (!modalElement) return;
+
+                const first = findClass(ids[0]);
+                const multiple = ids.length > 1;
+
+                document.getElementById('payment-code').value = currentStudent?.custom_id || '';
+                document.getElementById('payment-enrollment-id').value = ids.join(',');
+                document.getElementById('payment-mark-method').value = currentMarkMethod || 'manual_web';
+
+                document.getElementById('modal-class-label').textContent = multiple ? 'Classes' : 'Class';
+                document.getElementById('modal-class-name').textContent = multiple ?
+                    ids.length + ' classes selected' : (first.class_name || '-');
+                document.getElementById('modal-category-name').textContent = multiple ?
+                    ids.map(function(id) {
+                        return findClass(id)?.class_name || '';
+                    }).join(', ') : (first.category_name || '-');
+
+                const total = ids.reduce(function(sum, id) {
+                    return sum + resolveClassFee(findClass(id));
+                }, 0);
+
+                document.getElementById('payment-final-fee').value = formatMoney(total);
+
+                // Discount is only for a single class (bulk pays the class fees).
+                const discountGroup = document.getElementById('payment-discount-group');
+                const discountInput = document.getElementById('payment-discount');
+                if (discountInput) discountInput.value = '0';
+                if (discountGroup) discountGroup.classList.toggle('d-none', multiple);
+
+                document.getElementById('payment-note').value = '';
+
+                setPaymentMethod('cash');
+                setNextPaymentMonth(ids);
+                recalcAmount();
+                modalError('');
+
+                bootstrap.Modal.getOrCreateInstance(modalElement).show();
             }
 
-            function setCurrentMonth() {
-
-                const monthInput =
-                    document.getElementById('payment-month');
-
-                if (!monthInput) {
-                    console.error(
-                        'Payment month input not found.'
-                    );
-                    return;
-                }
-
-                const now = new Date();
-
-                const year =
-                    now.getFullYear();
-
-                const month =
-                    String(
-                        now.getMonth() + 1
-                    ).padStart(2, '0');
-
-                monthInput.value =
-                    `${year}-${month}`;
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | Discount
-            |--------------------------------------------------------------------------
-            */
-
-            const discountInput = document.getElementById('payment-discount');
-            if (discountInput) {
-                discountInput.addEventListener('input', function() {
-                    const finalFee = Number(document.getElementById('payment-final-fee')?.value || 0);
-                    const discount = Number(this.value || 0);
-                    const payable = Math.max(finalFee - discount, 0);
-                    const amountEl = document.getElementById('payment-amount');
-                    if (amountEl) amountEl.value = payable.toFixed(2);
+            const paymentModalEl = document.getElementById('paymentModal');
+            if (paymentModalEl) {
+                paymentModalEl.addEventListener('shown.bs.modal', function() {
+                    document.getElementById('confirm-payment-btn')?.focus();
                 });
             }
 
@@ -1140,168 +979,140 @@
             |--------------------------------------------------------------------------
             */
 
-            const confirmBtn = document.getElementById('confirm-payment-btn');
-            if (confirmBtn) {
-                confirmBtn.addEventListener('click', async function() {
+            let paymentInProgress = false;
 
-                    const enrollmentInput = document.getElementById('payment-enrollment-id');
-                    if (!enrollmentInput) {
-                        alert('Payment form not loaded properly.');
-                        return;
-                    }
+            async function postJson(url, data) {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    },
+                    body: JSON.stringify(data)
+                });
 
-                    const enrollmentIds = enrollmentInput.value
-                        .split(',')
-                        .map(Number)
-                        .filter(Boolean);
+                let result = {};
+                try {
+                    result = await response.json();
+                } catch (e) {
+                    throw new Error('Unexpected server response (' + response.status + ').');
+                }
 
-                    if (!enrollmentIds.length) {
-                        alert('Please select a class.');
-                        return;
-                    }
+                if (!response.ok || result.status !== 'success') {
+                    // Laravel validation: show the first field error.
+                    const firstError = result.errors ? Object.values(result.errors).flat()[0] : null;
+                    throw new Error(firstError || result.message || 'Payment failed.');
+                }
 
-                    const monthEl = document.getElementById('payment-month');
-                    const month = monthEl?.value || '';
+                return result;
+            }
 
-                    if (!month) {
-                        alert('Please select payment month.');
-                        return;
-                    }
+            async function confirmPayment() {
 
-                    const paymentMethod = document.getElementById('payment-method')?.value || 'cash';
-                    const discount = Number(document.getElementById('payment-discount')?.value || 0);
-                    const note = document.getElementById('payment-note')?.value || '';
-                    const markMethod = document.getElementById('payment-mark-method')?.value ||
-                        'manual_web';
+                if (paymentInProgress) return;
 
-                    const button = this;
-                    button.disabled = true;
-                    button.innerHTML =
-                        `<span class="spinner-border spinner-border-sm me-2"></span> Processing...`;
+                const ids = String(document.getElementById('payment-enrollment-id')?.value || '')
+                    .split(',').map(Number).filter(Boolean);
 
-                    try {
+                if (!ids.length) {
+                    modalError('Please select a class.');
+                    return;
+                }
 
-                        if (enrollmentIds.length === 1) {
+                const month = document.getElementById('payment-month')?.value || '';
+                if (!month) {
+                    modalError('Please select the payment month.');
+                    document.getElementById('payment-month')?.focus();
+                    return;
+                }
 
-                            const enrollment = currentClasses.find(function(item) {
-                                return Number(item.enrollment_id) === Number(enrollmentIds[0]);
-                            });
+                const paymentMethod = document.getElementById('payment-method')?.value || 'cash';
+                const note = document.getElementById('payment-note')?.value || '';
+                const markMethod = document.getElementById('payment-mark-method')?.value || 'manual_web';
 
-                            if (!enrollment) throw new Error('Class not found');
+                const button = document.getElementById('confirm-payment-btn');
+                const originalHtml = button.innerHTML;
 
-                            const amount = Number(document.getElementById('payment-amount')?.value ||
-                                0);
+                paymentInProgress = true;
+                button.disabled = true;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+                modalError('');
 
-                            const data = {
-                                code: currentStudent?.custom_id || '',
-                                enrollment_id: enrollmentIds[0],
-                                amount: amount,
-                                payment_month: month + '-01',
-                                mark_method: markMethod,
-                                payment_method: paymentMethod,
-                                discount_amount: discount,
-                                note: note
-                            };
+                try {
+                    let result;
 
-                            const response = await fetch(payUrl, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Accept': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector(
-                                        'meta[name="csrf-token"]')?.getAttribute(
-                                        'content') || ''
-                                },
-                                body: JSON.stringify(data)
-                            });
+                    if (ids.length === 1) {
+                        const amount = Number(document.getElementById('payment-amount')?.value || 0);
+                        const discount = Number(document.getElementById('payment-discount')?.value || 0);
 
-                            const result = await response.json();
+                        if (amount <= 0) {
+                            throw new Error('Amount must be more than 0.');
+                        }
 
-                            if (!response.ok || result.status !== 'success') {
-                                throw new Error(result.message || 'Payment failed.');
-                            }
-
-                            // Close payment modal
-                            const modal = bootstrap.Modal.getInstance(document.getElementById(
-                                'paymentModal'));
-                            if (modal) modal.hide();
-
-                            // Show receipt
-                            showReceipt(result.data.receipt);
-
-                            setTimeout(function() {
-                                printReceipt(result.data.receipt);
-                            }, 350);
-
-                            // Refresh student data
-                            await readStudent(currentStudent?.custom_id, currentMarkMethod);
-
-                        } else {
-
-                            // Bulk Payment (Class Fee only)
-                            const payments = enrollmentIds.map(function(id) {
-                                const enrollment = currentClasses.find(function(item) {
-                                    return Number(item.enrollment_id) === Number(id);
-                                });
-
-                                const totalFee = resolveClassFee(enrollment);
-
+                        result = await postJson(payUrl, {
+                            code: currentStudent?.custom_id || '',
+                            enrollment_id: ids[0],
+                            amount: amount,
+                            discount_amount: discount > 0 ? discount : 0,
+                            payment_month: month + '-01',
+                            mark_method: markMethod,
+                            payment_method: paymentMethod,
+                            note: note
+                        });
+                    } else {
+                        result = await postJson(bulkPayUrl, {
+                            payments: ids.map(function(id) {
                                 return {
                                     code: currentStudent?.custom_id || '',
                                     enrollment_id: id,
-                                    amount: totalFee,
+                                    amount: resolveClassFee(findClass(id)),
                                     payment_month: month + '-01',
                                     mark_method: markMethod,
                                     payment_method: paymentMethod,
-                                    discount_amount: 0,
                                     note: note
                                 };
-                            });
-
-                            const response = await fetch(bulkPayUrl, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Accept': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector(
-                                        'meta[name="csrf-token"]')?.getAttribute(
-                                        'content') || ''
-                                },
-                                body: JSON.stringify({
-                                    payments: payments
-                                })
-                            });
-
-                            const result = await response.json();
-
-                            if (!response.ok || result.status !== 'success') {
-                                throw new Error(result.message || 'Bulk payment failed.');
-                            }
-
-                            // Close payment modal
-                            const modal = bootstrap.Modal.getInstance(document.getElementById(
-                                'paymentModal'));
-                            if (modal) modal.hide();
-
-                            // Show receipt
-                            showReceipt(result.data.receipt);
-
-                            setTimeout(function() {
-                                printReceipt(result.data.receipt);
-                            }, 350);
-
-                            // Refresh student data
-                            await readStudent(currentStudent?.custom_id, currentMarkMethod);
-
-                        }
-
-                    } catch (error) {
-                        alert(error.message);
-                    } finally {
-                        button.disabled = false;
-                        button.innerHTML = `<i class="bi bi-check-circle me-1"></i> Confirm Payment`;
+                            })
+                        });
                     }
 
+                    bootstrap.Modal.getInstance(document.getElementById('paymentModal'))?.hide();
+
+                    lastReceipt = result.data?.receipt || null;
+
+                    showReceipt(lastReceipt);
+                    setTimeout(function() {
+                        printReceipt(lastReceipt);
+                    }, 350);
+
+                    toast('Payment saved.', 'success');
+
+                    await readStudent(currentStudent?.custom_id, currentMarkMethod, { autoOpen: false });
+
+                } catch (error) {
+                    modalError(error.message);
+                } finally {
+                    paymentInProgress = false;
+                    button.disabled = false;
+                    button.innerHTML = originalHtml;
+                }
+            }
+
+            const confirmBtn = document.getElementById('confirm-payment-btn');
+            if (confirmBtn) confirmBtn.addEventListener('click', confirmPayment);
+
+            const receiptNextBtn = document.getElementById('receipt-next-btn');
+            if (receiptNextBtn) {
+                receiptNextBtn.addEventListener('click', function() {
+                    bootstrap.Modal.getInstance(document.getElementById('receiptModal'))?.hide();
+                    resetForNextStudent();
+                });
+            }
+
+            const receiptModalEl = document.getElementById('receiptModal');
+            if (receiptModalEl) {
+                receiptModalEl.addEventListener('shown.bs.modal', function() {
+                    receiptNextBtn?.focus();
                 });
             }
 
@@ -1317,33 +1128,13 @@
                     return '';
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Rows
-                |--------------------------------------------------------------------------
-                */
-
                 const rows =
                     receipt.rows ||
-                    receipt.payments ||
-                    [];
-
-                /*
-                |--------------------------------------------------------------------------
-                | Student (fallback to first row's student)
-                |--------------------------------------------------------------------------
-                */
+                    receipt.payments || [];
 
                 const student =
                     receipt.student ||
-                    rows[0]?.student ||
-                    {};
-
-                /*
-                |--------------------------------------------------------------------------
-                | Payment Date / Time
-                |--------------------------------------------------------------------------
-                */
+                    rows[0]?.student || {};
 
                 const paymentDate =
                     receipt.payment_date ||
@@ -1360,12 +1151,6 @@
                     rows[0]?.payment_method ||
                     '-';
 
-                /*
-                |--------------------------------------------------------------------------
-                | Header
-                |--------------------------------------------------------------------------
-                */
-
                 let html = `
                     <div id="receipt-print-area" class="receipt-paper">
                         <div class="text-center">
@@ -1381,21 +1166,9 @@
                         <div class="receipt-line"></div>
                 `;
 
-                /*
-                |--------------------------------------------------------------------------
-                | Rows
-                |--------------------------------------------------------------------------
-                */
-
                 if (rows.length) {
 
                     rows.forEach(function(row) {
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Fee (Class Fee only)
-                        |--------------------------------------------------------------------------
-                        */
 
                         const classFee = Number(
                             row.class_fee ??
@@ -1403,17 +1176,6 @@
                             row.total_fee ??
                             0
                         );
-
-                        const totalFee = Number(
-                            row.total_fee ??
-                            classFee
-                        );
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Row Fields (with nested fallback)
-                        |--------------------------------------------------------------------------
-                        */
 
                         const className =
                             row.class_name ||
@@ -1446,26 +1208,38 @@
                             row.class?.receipt_number ||
                             '-';
 
-                        const paidAmount = Number(
-                            row.paid_amount ??
-                            row.paid ??
-                            0
-                        );
+                        const paymentStatus =
+                            row.payment_status ||
+                            row.status ||
+                            '-';
 
                         html += `
-                            <div class="receipt-item">
-                                <strong>${escapeHtml(className)}</strong><br>
-                                Category: ${escapeHtml(category)}<br>
-                                Grade: ${escapeHtml(grade)}<br>
-                                Teacher: ${escapeHtml(teacher)}<br>
-                                Month: ${escapeHtml(formatReceiptMonth(month))}<br>
-                                Receipt: ${escapeHtml(receiptNumber)}<br>
-                                Class Fee: Rs. ${formatMoney(classFee)}<br>
-                                Total Fee: Rs. ${formatMoney(totalFee)}<br>
-                                Paid: Rs. ${formatMoney(paidAmount)}
-                            </div>
-                            <div class="receipt-line"></div>
-                        `;
+    <div class="receipt-item">
+
+        <strong>${escapeHtml(className)}</strong><br>
+
+        Category: ${escapeHtml(category)}<br>
+
+        Grade: ${escapeHtml(grade)}<br>
+
+        Teacher: ${escapeHtml(teacher)}<br>
+
+        Month: ${escapeHtml(
+            formatReceiptMonth(month)
+        )}<br>
+
+        Receipt: ${escapeHtml(receiptNumber)}<br>
+
+        Class Fee: Rs. ${formatMoney(classFee)}<br>
+
+        Payment Status: ${escapeHtml(
+            String(paymentStatus).toUpperCase()
+        )}
+
+    </div>
+
+    <div class="receipt-line"></div>
+`;
                     });
 
                 } else {
@@ -1478,35 +1252,31 @@
                     `;
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Summary (Class Fee only)
-                |--------------------------------------------------------------------------
-                */
-
                 const totalClassFee = Number(
                     receipt.summary?.total_class_fee || 0
                 );
 
-                const totalFee = totalClassFee;
-
-                const totalPaid = Number(
-                    receipt.summary?.total_paid || 0
-                );
-
                 html += `
-                        <div class="receipt-summary">
-                            Class Fee: Rs. ${formatMoney(totalClassFee)}<br>
-                            <strong>TOTAL FEE: Rs. ${formatMoney(totalFee)}</strong><br>
-                            <strong>TOTAL PAID: Rs. ${formatMoney(totalPaid)}</strong>
-                        </div>
-                        <div class="receipt-line"></div>
+    <div class="receipt-summary">
 
-                        Payment: ${escapeHtml(paymentMethod)}<br><br>
+        <strong>
+            TOTAL FEE: Rs. ${formatMoney(totalClassFee)}
+        </strong>
 
-                        <div class="text-center">Thank You!</div>
-                    </div>
-                `;
+    </div>
+
+    <div class="receipt-line"></div>
+
+    Payment: ${escapeHtml(paymentMethod || '-')}
+
+    <br><br>
+
+    <div class="text-center">
+        Thank You!
+    </div>
+
+    </div>
+`;
 
                 return html;
             }
@@ -1534,7 +1304,7 @@
 
                 const printWindow = window.open('', '_blank', 'width=400,height=700');
                 if (!printWindow) {
-                    alert('Please allow popups to automatically print the receipt.');
+                    toast('Please allow popups to print the receipt automatically.', 'warning');
                     return;
                 }
 
@@ -1561,7 +1331,7 @@
 
                     const printWindow = window.open('', '_blank', 'width=400,height=700');
                     if (!printWindow) {
-                        alert('Please allow popups to print the receipt.');
+                        toast('Please allow popups to print the receipt.', 'warning');
                         return;
                     }
 
@@ -1581,33 +1351,130 @@
             }
 
             /*
-             |--------------------------------------------------------------------------
-             | Keyboard Shortcuts
-             |--------------------------------------------------------------------------
-             */
+            |--------------------------------------------------------------------------
+            | Keyboard Shortcuts
+            |--------------------------------------------------------------------------
+            | F1 help, F2 or / search, 1-9 select class, A all unpaid, F8 pay,
+            | Esc next student, F9 print again. Inside the payment modal: Enter
+            | confirm, Alt+1..6 method, Alt+M month.
+            */
+
+            const methodKeys = ['cash', 'card', 'bank_transfer', 'online', 'cheque', 'other'];
+
+            function isTyping(target) {
+                if (!target) return false;
+                const tag = target.tagName;
+                return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+            }
+
             document.addEventListener('keydown', function(event) {
-                if (event.key === 'F2') {
+
+                const key = event.key;
+                const paymentOpen = isModalOpen('paymentModal');
+                const receiptOpen = isModalOpen('receiptModal');
+                const helpOpen = isModalOpen('shortcutsModal');
+
+                // Always available
+                if (key === 'F1') {
                     event.preventDefault();
-                    const input = document.getElementById('manual-code');
-                    if (input) {
-                        input.focus();
-                        input.select();
+                    const help = document.getElementById('shortcutsModal');
+                    if (help) bootstrap.Modal.getOrCreateInstance(help).toggle();
+                    return;
+                }
+
+                if (key === 'F9') {
+                    event.preventDefault();
+                    if (lastReceipt) {
+                        printReceipt(lastReceipt);
+                    } else {
+                        toast('No receipt to print yet.', 'warning');
                     }
                     return;
                 }
-                if (event.key === 'Enter') {
-                    const modal = document.getElementById('paymentModal');
-                    if (!modal || !modal.classList.contains('show')) return;
-                    if (event.target?.tagName === 'TEXTAREA') return;
+
+                if (helpOpen) return;
+
+                // Payment modal
+                if (paymentOpen) {
+                    if (event.altKey && /^[1-6]$/.test(key)) {
+                        event.preventDefault();
+                        setPaymentMethod(methodKeys[Number(key) - 1]);
+                        return;
+                    }
+                    if (event.altKey && key.toLowerCase() === 'm') {
+                        event.preventDefault();
+                        document.getElementById('payment-month')?.focus();
+                        return;
+                    }
+                    if (key === 'Enter' && event.target?.tagName !== 'TEXTAREA') {
+                        event.preventDefault();
+                        confirmPayment();
+                    }
+                    return;
+                }
+
+                // Receipt modal
+                if (receiptOpen) {
+                    if (key === 'Enter') {
+                        event.preventDefault();
+                        receiptNextBtn?.click();
+                    }
+                    return;
+                }
+
+                if (anyModalOpen()) return;
+
+                if (key === 'F2') {
                     event.preventDefault();
-                    const confirmBtn = document.getElementById('confirm-payment-btn');
-                    if (confirmBtn && !confirmBtn.disabled) confirmBtn.click();
+                    focusSearch();
+                    return;
+                }
+
+                if (key === 'F8' || (key === 'Enter' && event.ctrlKey)) {
+                    event.preventDefault();
+                    paySelected();
+                    return;
+                }
+
+                if (key === 'Escape') {
+                    event.preventDefault();
+                    resetForNextStudent();
+                    return;
+                }
+
+                // Single-key shortcuts only when not typing in a field
+                if (isTyping(event.target) || event.ctrlKey || event.altKey || event.metaKey) return;
+
+                if (key === '/') {
+                    event.preventDefault();
+                    focusSearch();
+                    return;
+                }
+
+                if (!currentStudent) return;
+
+                if (/^[1-9]$/.test(key)) {
+                    const item = currentClasses[Number(key) - 1];
+                    if (item) {
+                        event.preventDefault();
+                        if (isPayable(item)) {
+                            toggleClass(item.enrollment_id);
+                        } else {
+                            toast(isFreeCard(item) ? 'Free card class - no payment needed.' : 'No fee set for this class.', 'warning');
+                        }
+                    }
+                    return;
+                }
+
+                if (key.toLowerCase() === 'a') {
+                    event.preventDefault();
+                    selectAllUnpaid();
                 }
             });
 
             /*
-             |--------------------------------------------------------------------------
-             | Manual Search
+            |--------------------------------------------------------------------------
+            | Manual Search
             |--------------------------------------------------------------------------
             */
 
@@ -1620,18 +1487,57 @@
                 });
             }
 
+            // Leaving the search box with a student loaded: let number keys work.
+            const manualInput = document.getElementById('manual-code');
+            if (manualInput) {
+                manualInput.addEventListener('keydown', function(event) {
+                    if (event.key === 'Escape' && currentStudent) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        manualInput.blur();
+                    }
+                });
+            }
+
             /*
             |--------------------------------------------------------------------------
             | QR Scanner
             |--------------------------------------------------------------------------
+            | The camera decodes the same QR many times a second. Only use a
+            | decode when nothing is loading, no dialog is open, and it is not the
+            | same code we just read.
             */
+
+            let lastQrCode = null;
+            let lastQrAt = 0;
+
+            function handleQrDecode(decodedText) {
+                const code = String(decodedText || '').trim();
+                if (!code) return;
+                if (isLoadingStudent || paymentInProgress || anyModalOpen()) return;
+
+                const now = Date.now();
+                if (code === lastQrCode && now - lastQrAt < 4000) return;
+                if (currentStudent && code === currentStudent.custom_id && now - lastQrAt < 15000) return;
+
+                lastQrCode = code;
+                lastQrAt = now;
+
+                const statusEl = document.getElementById('qr-reader-status');
+                if (statusEl) statusEl.innerHTML = '<i class="bi bi-check2-circle text-success me-1"></i>Scanned: ' + escapeHtml(code);
+
+                readStudent(code, 'qr_web');
+            }
 
             function startQrScanner() {
 
                 const readerEl = document.getElementById('qr-reader');
                 const statusEl = document.getElementById('qr-reader-status');
 
-                if (!readerEl) return;
+                if (!readerEl || typeof Html5Qrcode === 'undefined') {
+                    if (statusEl) statusEl.textContent = 'QR scanner could not load. Type the Student ID instead.';
+                    return;
+                }
 
                 html5QrCode = new Html5Qrcode('qr-reader');
 
@@ -1639,7 +1545,7 @@
                     .then(function(devices) {
 
                         if (!devices.length) {
-                            if (statusEl) statusEl.textContent = '❌ No camera found.';
+                            if (statusEl) statusEl.textContent = 'No camera found. Type the Student ID instead.';
                             return;
                         }
 
@@ -1649,29 +1555,28 @@
                             cameraId, {
                                 fps: 10,
                                 qrbox: {
-                                    width: 180,
-                                    height: 180
+                                    width: 200,
+                                    height: 200
                                 }
                             },
-                            function(decodedText) {
-                                readStudent(decodedText, 'qr_web');
-                            },
+                            handleQrDecode,
                             function() {
                                 // Ignore scan errors
                             }
                         );
 
-                        if (statusEl) statusEl.innerHTML = '✅ Camera ready';
+                        if (statusEl) statusEl.innerHTML = '<i class="bi bi-camera-video text-success me-1"></i>Camera ready &ndash; show the student QR';
 
                     })
                     .catch(function(error) {
-                        if (statusEl) statusEl.textContent = '❌ Camera permission required.';
+                        if (statusEl) statusEl.textContent = 'Camera permission required. Type the Student ID instead.';
                         console.error(error);
                     });
 
             }
 
             startQrScanner();
+            focusSearch();
 
         });
     </script>

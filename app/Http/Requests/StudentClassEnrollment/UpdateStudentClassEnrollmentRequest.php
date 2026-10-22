@@ -15,6 +15,11 @@ class UpdateStudentClassEnrollmentRequest extends FormRequest
     {
         return [
             'class_category_fee_id' => ['required', 'exists:class_category_fees,id'],
+            'class_category_fee_option_id' => [
+                'nullable',
+                'integer',
+                'exists:class_category_fee_options,id',
+            ],
 
             'is_active' => ['nullable', 'boolean'],
             'is_free_card' => ['nullable', 'boolean'],

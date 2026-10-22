@@ -254,5 +254,82 @@
                 grid-template-columns: 1fr
             }
         }
+    
+        /* ---------- Fast payment screen ---------- */
+
+        body.np-has-pay-bar #student-section { padding-bottom: 110px; }
+
+        .np-shortcut-strip { display: flex; flex-wrap: wrap; gap: .4rem .9rem; font-size: .85rem; color: #6c757d; }
+        .np-shortcut-strip span { white-space: nowrap; }
+
+        kbd, .np-kbd-light {
+            display: inline-block; min-width: 1.6em; padding: .1rem .4rem; border-radius: .35rem;
+            font-size: .78em; font-weight: 700; text-align: center; line-height: 1.4;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+        kbd { background: #212529; color: #fff; border-bottom: 2px solid #000; }
+        .np-kbd-light { background: rgba(255,255,255,.22); color: inherit; border: 1px solid rgba(255,255,255,.45); }
+
+        .np-shortcut-table td { padding: .45rem .5rem; vertical-align: middle; }
+        .np-shortcut-table td:first-child { white-space: nowrap; width: 140px; }
+
+        .np-search-input { font-size: 1.6rem !important; font-weight: 700; letter-spacing: .06em; height: 64px; text-transform: uppercase; }
+        .np-search-group .btn { font-size: 1.15rem; font-weight: 600; padding-left: 1.5rem; padding-right: 1.5rem; }
+
+        .np-stat { border-radius: .75rem; padding: .6rem 1rem; background: #f8f9fa; min-width: 130px; }
+        .np-stat-danger { background: #fdecea; color: #b02a37; }
+        .np-stat-primary { background: #e7f1ff; color: #0a58ca; }
+        .np-stat-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; opacity: .85; }
+        .np-stat-value { font-size: 1.5rem; font-weight: 800; line-height: 1.2; }
+
+        /* Class cards */
+        .np-card { cursor: pointer; position: relative; transition: box-shadow .15s, border-color .15s, transform .1s; border: 2px solid transparent; }
+        .np-card:hover { transform: translateY(-1px); }
+        .np-card:focus-visible { outline: 3px solid #86b7fe; outline-offset: 2px; }
+        .np-card-selected { border-color: #198754 !important; box-shadow: 0 0 0 4px rgba(25,135,84,.18) !important; background: #f3fbf6; }
+        .np-card-disabled { cursor: default; opacity: .75; }
+        .np-card-disabled:hover { transform: none; }
+        .np-card-number {
+            flex: 0 0 auto; width: 40px; height: 40px; border-radius: .6rem; background: #212529; color: #fff;
+            display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 800;
+        }
+        .np-card-selected .np-card-number { background: #198754; }
+        .np-card-disabled .np-card-number { background: #adb5bd; }
+        .np-card-check { width: 1.6rem; height: 1.6rem; flex: 0 0 auto; pointer-events: none; }
+        .np-card .pay-single-btn { padding-top: .75rem; padding-bottom: .75rem; }
+
+        .payment-status-free {
+            display: inline-block; padding: .3rem .7rem; border-radius: 999px; font-size: .72rem; font-weight: 700;
+            background: #e0f2fe; color: #0369a1; white-space: nowrap;
+        }
+
+        /* Sticky pay bar */
+        .np-pay-bar {
+            position: fixed; left: 0; right: 0; bottom: 0; z-index: 1030;
+            background: #1f2937; color: #fff; padding: .85rem 1.25rem; box-shadow: 0 -6px 20px rgba(0,0,0,.2);
+        }
+        .np-pay-bar .np-pay-total { font-size: 1.9rem; font-weight: 800; line-height: 1.1; }
+        .np-pay-btn { font-size: 1.35rem !important; font-weight: 800; padding: .85rem 2.25rem !important; min-width: 240px; }
+
+        /* Payment modal */
+        .np-modal-total { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: .9rem; padding: 1rem 1.25rem; }
+        .np-modal-amount { font-size: 2.6rem; font-weight: 800; color: #15803d; line-height: 1.1; }
+        .np-method-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; }
+        .np-method {
+            border: 2px solid #dee2e6; background: #fff; border-radius: .75rem; padding: .75rem .5rem;
+            font-weight: 600; text-align: center; position: relative; transition: all .12s;
+        }
+        .np-method:hover { border-color: #86b7fe; }
+        .np-method.active { border-color: #198754; background: #198754; color: #fff; }
+        .np-method-icon { display: block; font-size: 1.5rem; margin-bottom: .15rem; }
+        .np-method kbd { position: absolute; top: .3rem; right: .35rem; font-size: .65rem; opacity: .8; }
+        #confirm-payment-btn { font-size: 1.3rem; font-weight: 800; padding-top: .9rem; padding-bottom: .9rem; }
+
+        @media (max-width: 576px) {
+            .np-method-grid { grid-template-columns: repeat(2, 1fr); }
+            .np-pay-btn { min-width: 0; width: 100%; }
+            .np-modal-amount { font-size: 2rem; }
+            .np-shortcut-strip { display: none; }
+        }
     </style>
 @endpush

@@ -144,7 +144,11 @@ class StudentClassEnrollmentController extends Controller
         $data = $request->validated();
 
         DB::transaction(function () use ($data) {
-            $this->validateClassCategoryFee($data['student_class_id'], $data['class_category_fee_id']);
+            $this->validateClassCategoryFee(
+                $data['student_class_id'],
+                $data['class_category_fee_id'],
+                $data['class_category_fee_option_id'] ?? null
+            );
 
             $existing = StudentClassEnrollment::withTrashed()
                 ->where('student_id', $data['student_id'])
@@ -289,17 +293,36 @@ class StudentClassEnrollmentController extends Controller
             ->with('success', 'Enrollment restored successfully.');
     }
 
-    private function validateClassCategoryFee($studentClassId, $classCategoryFeeId): void
-    {
-        $exists = ClassCategoryFee::where('id', $classCategoryFeeId)
+    private function validateClassCategoryFee(
+        $studentClassId,
+        $classCategoryFeeId,
+        $classCategoryFeeOptionId = null
+    ): void {
+        $categoryFee = ClassCategoryFee::where('id', $classCategoryFeeId)
             ->where('student_class_id', $studentClassId)
             ->where('is_active', true)
-            ->exists();
+            ->first();
 
-        if (! $exists) {
+        if (!$categoryFee) {
             throw ValidationException::withMessages([
-                'class_category_fee_id' => 'Selected category fee is not assigned to this class or fee is inactive.',
+                'class_category_fee_id' =>
+                'Selected category fee is not assigned to this class or fee is inactive.',
             ]);
+        }
+
+        if ($classCategoryFeeOptionId) {
+
+            $optionExists = $categoryFee->feeOptions()
+                ->where('id', $classCategoryFeeOptionId)
+                ->where('is_active', true)
+                ->exists();
+
+            if (!$optionExists) {
+                throw ValidationException::withMessages([
+                    'class_category_fee_option_id' =>
+                    'Selected fee option does not belong to this category or is inactive.',
+                ]);
+            }
         }
     }
 

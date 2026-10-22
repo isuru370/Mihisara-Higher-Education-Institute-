@@ -113,8 +113,8 @@
                         <div class="col-lg-3">
                             <select name="student_class_id" class="form-select custom-input">
                                 <option value="">All Classes</option>
-                                @foreach($classes as $class)
-                                    <option value="{{ $class->id }}" <?php    echo $currentStudentClassId == $class->id ? 'selected="selected"' : ''; ?>>
+                                @foreach ($classes as $class)
+                                    <option value="{{ $class->id }}" <?php echo $currentStudentClassId == $class->id ? 'selected="selected"' : ''; ?>>
                                         {{ $class->class_name }}
                                         | Grade: {{ optional($class->grade)->grade_name }}
                                         | Subject: {{ optional($class->subject)->subject_name }}
@@ -126,10 +126,10 @@
                         <div class="col-lg-3">
                             <select name="class_category_id" class="form-select custom-input">
                                 <option value="">All Categories</option>
-                                @foreach($categories as $category)
-                                    <option value="{{ $category->id }}" <?php    echo $currentCategoryId == $category->id ? 'selected="selected"' : ''; ?>>
+                                @foreach ($categories as $category)
+                                    <option value="{{ $category->id }}" <?php echo $currentCategoryId == $category->id ? 'selected="selected"' : ''; ?>>
                                         {{ $category->category_name }}
-                                        @if($category->code)
+                                        @if ($category->code)
                                             - {{ $category->code }}
                                         @endif
                                     </option>
@@ -193,168 +193,185 @@
 
                     <tbody>
                         @forelse($fees as $fee)
-                                            @php
-                                                $studentClass = $fee->studentClass;
-                                                $category = $fee->category;
+                            @php
+                                $studentClass = $fee->studentClass;
+                                $category = $fee->category;
 
-                                                $classIsActive = false;
-                                                $categoryIsActive = false;
-                                                $canSchedule = false;
+                                $classIsActive = false;
+                                $categoryIsActive = false;
+                                $canSchedule = false;
 
-                                                if ($studentClass && $studentClass->is_active) {
-                                                    $classIsActive = true;
-                                                }
+                                if ($studentClass && $studentClass->is_active) {
+                                    $classIsActive = true;
+                                }
 
-                                                if ($category && $category->is_active) {
-                                                    $categoryIsActive = true;
-                                                }
+                                if ($category && $category->is_active) {
+                                    $categoryIsActive = true;
+                                }
 
-                                                if ($classIsActive && $categoryIsActive && $fee->is_active) {
-                                                    $canSchedule = true;
-                                                }
-                                            @endphp
+                                if ($classIsActive && $categoryIsActive && $fee->is_active) {
+                                    $canSchedule = true;
+                                }
+                            @endphp
 
-                                            <tr>
-                                                <td>
-                                                    {{ $loop->iteration + (($fees->currentPage() - 1) * $fees->perPage()) }}
-                                                </td>
+                            <tr>
+                                <td>
+                                    {{ $loop->iteration + ($fees->currentPage() - 1) * $fees->perPage() }}
+                                </td>
 
-                                                <td>
-                                                    <div class="fw-bold">
-                                                        {{ $studentClass ? $studentClass->class_name : '-' }}
-                                                    </div>
+                                <td>
+                                    <div class="fw-bold">
+                                        {{ $studentClass ? $studentClass->class_name : '-' }}
+                                    </div>
 
-                                                    <div class="small text-muted">
-                                                        Grade:
-                                                        {{ $studentClass && $studentClass->grade ? $studentClass->grade->grade_name : 'N/A' }}
-                                                    </div>
+                                    <div class="small text-muted">
+                                        Grade:
+                                        {{ $studentClass && $studentClass->grade ? $studentClass->grade->grade_name : 'N/A' }}
+                                    </div>
 
-                                                    <div class="small text-muted">
-                                                        Subject:
-                                                        {{ $studentClass && $studentClass->subject ? $studentClass->subject->subject_name : 'N/A' }}
-                                                    </div>
+                                    <div class="small text-muted">
+                                        Subject:
+                                        {{ $studentClass && $studentClass->subject ? $studentClass->subject->subject_name : 'N/A' }}
+                                    </div>
 
-                                                    <div class="small text-muted">
-                                                        Teacher:
-                                                        {{ $studentClass && $studentClass->teacher ? $studentClass->teacher->full_name : 'N/A' }}
-                                                    </div>
+                                    <div class="small text-muted">
+                                        Teacher:
+                                        {{ $studentClass && $studentClass->teacher ? $studentClass->teacher->full_name : 'N/A' }}
+                                    </div>
 
-                                                    <span class="badge {{ $classIsActive ? 'bg-success' : 'bg-secondary' }} custom-badge mt-2">
-                                                        {{ $classIsActive ? 'Class Active' : 'Class Inactive' }}
-                                                    </span>
-                                                </td>
+                                    <span
+                                        class="badge {{ $classIsActive ? 'bg-success' : 'bg-secondary' }} custom-badge mt-2">
+                                        {{ $classIsActive ? 'Class Active' : 'Class Inactive' }}
+                                    </span>
+                                </td>
 
-                                                <td>
-                                                    <div class="fw-semibold">
-                                                        {{ $category ? $category->category_name : '-' }}
-                                                    </div>
+                                <td>
+                                    <div class="fw-semibold">
+                                        {{ $category ? $category->category_name : '-' }}
+                                    </div>
 
-                                                    <small class="text-muted">
-                                                        {{ $category ? $category->code : '' }}
-                                                    </small>
+                                    <small class="text-muted">
+                                        {{ $category ? $category->code : '' }}
+                                    </small>
 
-                                                    @if(!$categoryIsActive)
-                                                        <br>
-                                                        <span class="badge bg-secondary custom-badge mt-2">
-                                                            Category Inactive
-                                                        </span>
-                                                    @endif
-                                                </td>
+                                    @if (!$categoryIsActive)
+                                        <br>
+                                        <span class="badge bg-secondary custom-badge mt-2">
+                                            Category Inactive
+                                        </span>
+                                    @endif
+                                </td>
 
-                                                <td>
-                                                    <span class="fw-bold">
-                                                        {{ number_format($fee->fee, 2) }}
-                                                    </span>
-                                                </td>
+                                <td>
+                                    <span class="fw-bold">
+                                        {{ number_format($fee->fee, 2) }}
+                                    </span>
+                                </td>
 
-                                                <td>
-                                                    <span class="badge {{ $fee->is_active ? 'bg-success' : 'bg-secondary' }} custom-badge">
-                                                        {{ $fee->is_active ? 'Active' : 'Inactive' }}
-                                                    </span>
-                                                </td>
+                                <td>
+                                    <span class="badge {{ $fee->is_active ? 'bg-success' : 'bg-secondary' }} custom-badge">
+                                        {{ $fee->is_active ? 'Active' : 'Inactive' }}
+                                    </span>
+                                </td>
 
-                                                <td class="text-center">
-                                                    <div class="d-flex justify-content-center gap-1 flex-wrap">
+                                <td class="text-center">
+                                    <div class="d-flex justify-content-center gap-1 flex-wrap">
 
-                                                        @if($canSchedule)
-                                                                                    <a href="{{ route('admin.class-schedules.create', [
-                                                                'student_class_id' => $fee->student_class_id,
-                                                                'class_category_id' => $fee->class_category_id
-                                                            ]) }}" class="action-btn schedule-btn" title="Create Schedule">
-                                                                                        <i class="bi bi-plus-circle-fill"></i>
-                                                                                    </a>
-                                                        @else
-                                                            <button type="button" class="action-btn disabled-btn" disabled
-                                                                title="Schedule not allowed">
-                                                                <i class="bi bi-plus-circle-fill"></i>
-                                                            </button>
-                                                        @endif
+                                        @if ($canSchedule)
+                                            <a href="{{ route('admin.class-schedules.create', [
+                                                'student_class_id' => $fee->student_class_id,
+                                                'class_category_id' => $fee->class_category_id,
+                                            ]) }}"
+                                                class="action-btn schedule-btn" title="Create Schedule">
+                                                <i class="bi bi-plus-circle-fill"></i>
+                                            </a>
+                                        @else
+                                            <button type="button" class="action-btn disabled-btn" disabled
+                                                title="Schedule not allowed">
+                                                <i class="bi bi-plus-circle-fill"></i>
+                                            </button>
+                                        @endif
 
-                                                        <a href="{{ route('admin.class-schedules.index', [
-                                'student_class_id' => $fee->student_class_id,
-                                'class_category_id' => $fee->class_category_id
-                            ]) }}" class="action-btn view-btn" title="View Schedules">
-                                                            <i class="bi bi-eye-fill"></i>
-                                                        </a>
-                                                    </div>
-                                                </td>
+                                        <a href="{{ route('admin.class-schedules.index', [
+                                            'student_class_id' => $fee->student_class_id,
+                                            'class_category_id' => $fee->class_category_id,
+                                        ]) }}"
+                                            class="action-btn view-btn" title="View Schedules">
+                                            <i class="bi bi-eye-fill"></i>
+                                        </a>
+                                    </div>
+                                </td>
 
-                                                <td class="text-end">
-                                                    <div class="action-buttons">
+                                <td class="text-end">
+                                    <div class="action-buttons">
 
-                                                        <a href="{{ route('admin.class-category-fees.show', $fee) }}"
-                                                            class="action-btn view-btn" title="View">
-                                                            <i class="bi bi-eye-fill"></i>
-                                                        </a>
+                                        <a href="{{ route('admin.class-category-fee-options.index', [
+                                            'class_category_fee_id' => $fee->id,
+                                        ]) }}"
+                                            class="action-btn fee-options-btn" title="Manage Fee Options">
 
-                                                        @if($classIsActive)
-                                                            <a href="{{ route('admin.class-category-fees.edit', $fee) }}"
-                                                                class="action-btn edit-btn" title="Edit">
-                                                                <i class="bi bi-pencil-fill"></i>
-                                                            </a>
-                                                        @else
-                                                            <button type="button" class="action-btn disabled-btn" disabled title="Class inactive">
-                                                                <i class="bi bi-pencil-fill"></i>
-                                                            </button>
-                                                        @endif
+                                            <i class="bi bi-cash-stack"></i>
 
-                                                        @if($classIsActive)
-                                                            <form method="POST" action="{{ route('admin.class-category-fees.toggleActive', $fee) }}"
-                                                                class="d-inline">
-                                                                @csrf
-                                                                @method('PATCH')
+                                        </a>
+                                        <a href="{{ route('admin.class-category-fees.show', $fee) }}"
+                                            class="action-btn view-btn" title="View">
+                                            <i class="bi bi-eye-fill"></i>
+                                        </a>
 
-                                                                <button type="submit"
-                                                                    class="action-btn {{ $fee->is_active ? 'inactive-btn' : 'active-btn' }}"
-                                                                    title="{{ $fee->is_active ? 'Deactivate' : 'Activate' }}">
-                                                                    <i class="bi {{ $fee->is_active ? 'bi-pause-fill' : 'bi-check-lg' }}"></i>
-                                                                </button>
-                                                            </form>
-                                                        @else
-                                                            <button type="button" class="action-btn disabled-btn" disabled title="Class inactive">
-                                                                <i class="bi bi-pause-fill"></i>
-                                                            </button>
-                                                        @endif
+                                        @if ($classIsActive)
+                                            <a href="{{ route('admin.class-category-fees.edit', $fee) }}"
+                                                class="action-btn edit-btn" title="Edit">
+                                                <i class="bi bi-pencil-fill"></i>
+                                            </a>
+                                        @else
+                                            <button type="button" class="action-btn disabled-btn" disabled
+                                                title="Class inactive">
+                                                <i class="bi bi-pencil-fill"></i>
+                                            </button>
+                                        @endif
 
-                                                        @if($classIsActive)
-                                                            <form method="POST" action="{{ route('admin.class-category-fees.destroy', $fee) }}"
-                                                                class="d-inline" onsubmit="return confirm('Delete this fee?')">
-                                                                @csrf
-                                                                @method('DELETE')
+                                        @if ($classIsActive)
+                                            <form method="POST"
+                                                action="{{ route('admin.class-category-fees.toggleActive', $fee) }}"
+                                                class="d-inline">
+                                                @csrf
+                                                @method('PATCH')
 
-                                                                <button type="submit" class="action-btn delete-btn" title="Delete">
-                                                                    <i class="bi bi-trash-fill"></i>
-                                                                </button>
-                                                            </form>
-                                                        @else
-                                                            <button type="button" class="action-btn disabled-btn" disabled title="Class inactive">
-                                                                <i class="bi bi-trash-fill"></i>
-                                                            </button>
-                                                        @endif
+                                                <button type="submit"
+                                                    class="action-btn {{ $fee->is_active ? 'inactive-btn' : 'active-btn' }}"
+                                                    title="{{ $fee->is_active ? 'Deactivate' : 'Activate' }}">
+                                                    <i
+                                                        class="bi {{ $fee->is_active ? 'bi-pause-fill' : 'bi-check-lg' }}"></i>
+                                                </button>
+                                            </form>
+                                        @else
+                                            <button type="button" class="action-btn disabled-btn" disabled
+                                                title="Class inactive">
+                                                <i class="bi bi-pause-fill"></i>
+                                            </button>
+                                        @endif
 
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                        @if ($classIsActive)
+                                            <form method="POST"
+                                                action="{{ route('admin.class-category-fees.destroy', $fee) }}"
+                                                class="d-inline" onsubmit="return confirm('Delete this fee?')">
+                                                @csrf
+                                                @method('DELETE')
+
+                                                <button type="submit" class="action-btn delete-btn" title="Delete">
+                                                    <i class="bi bi-trash-fill"></i>
+                                                </button>
+                                            </form>
+                                        @else
+                                            <button type="button" class="action-btn disabled-btn" disabled
+                                                title="Class inactive">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </button>
+                                        @endif
+
+                                    </div>
+                                </td>
+                            </tr>
                         @empty
                             <tr>
                                 <td colspan="7" class="text-center py-5 text-muted">
