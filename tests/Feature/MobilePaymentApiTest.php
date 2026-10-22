@@ -85,6 +85,25 @@ class MobilePaymentApiTest extends TestCase
             ->assertJsonPath('data.classes.0.enrollment_id', $this->enrollmentId);
     }
 
+    public function test_read_marks_free_card_and_fee_option(): void
+    {
+        $optionId = DB::table('class_category_fee_options')->insertGetId([
+            'class_category_fee_id' => DB::table('student_class_enrollments')->where('id', $this->enrollmentId)->value('class_category_fee_id'),
+            'label' => 'Full fee', 'fee' => 2500, 'is_default' => true, 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        DB::table('student_class_enrollments')->where('id', $this->enrollmentId)->update([
+            'is_free_card' => true, 'class_category_fee_option_id' => $optionId,
+        ]);
+
+        $this->postJson('/api/new-payment/read', ['code' => 'ST029'])
+            ->assertOk()
+            ->assertJsonPath('data.classes.0.is_free_card', true)
+            ->assertJsonPath('data.classes.0.final_fee', 0)
+            ->assertJsonPath('data.classes.0.fee_option.label', 'Full fee');
+    }
+
     public function test_read_unknown_code_returns_message(): void
     {
         $this->postJson('/api/new-payment/read', ['code' => 'NOPE'])
