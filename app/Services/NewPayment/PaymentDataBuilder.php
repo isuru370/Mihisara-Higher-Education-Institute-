@@ -150,6 +150,28 @@ class PaymentDataBuilder
 
             /*
             |--------------------------------------------------------------------------
+            | Free Card / Fee Option
+            |--------------------------------------------------------------------------
+            |
+            | The mobile app hides free-card classes from payment (final_fee is
+            | 0 for them) and shows the chosen fee option.
+            |
+            */
+
+            'is_free_card' => (bool) $enrollment->is_free_card,
+
+            'fee_option' => $enrollment->classCategoryFeeOption ? [
+                'id' => $enrollment->classCategoryFeeOption->id,
+                'class_category_fee_id' => $enrollment->classCategoryFeeOption->class_category_fee_id,
+                'label' => $enrollment->classCategoryFeeOption->label,
+                'fee' => (float) $enrollment->classCategoryFeeOption->fee,
+                'is_default' => (bool) $enrollment->classCategoryFeeOption->is_default,
+                'is_active' => (bool) $enrollment->classCategoryFeeOption->is_active,
+                'note' => $enrollment->classCategoryFeeOption->note,
+            ] : null,
+
+            /*
+            |--------------------------------------------------------------------------
             | Attendance
             |--------------------------------------------------------------------------
             */
