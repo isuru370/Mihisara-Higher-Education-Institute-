@@ -105,10 +105,11 @@ class StudentService
 
         DB::afterCommit(function () use ($student, $plainPassword) {
 
-            $this->parentHubService->registerStudent(
-                $student->custom_id,
-                $student->custom_id
-            );
+            // Parent Hub registration turned off for now.
+            // $this->parentHubService->registerStudent(
+            //     $student->custom_id,
+            //     $student->custom_id
+            // );
 
             // SendStudentPortalLoginSms::dispatch(
             //     $student->guardian_mobile,
